@@ -29,23 +29,23 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY
  12 .comment      00000043  00000000  00000000  00020204  2**0
                   CONTENTS, READONLY
- 13 .debug_info   0000d473  00000000  00000000  00020247  2**0
+ 13 .debug_info   0000d461  00000000  00000000  00020247  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_abbrev 00001e48  00000000  00000000  0002d6ba  2**0
+ 14 .debug_abbrev 00001e1a  00000000  00000000  0002d6a8  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_aranges 00000cc8  00000000  00000000  0002f508  2**3
+ 15 .debug_aranges 00000cc8  00000000  00000000  0002f4c8  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_rnglists 000009f7  00000000  00000000  000301d0  2**0
+ 16 .debug_rnglists 000009f7  00000000  00000000  00030190  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 17 .debug_macro  00017255  00000000  00000000  00030bc7  2**0
+ 17 .debug_macro  00017255  00000000  00000000  00030b87  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 18 .debug_line   0000e40a  00000000  00000000  00047e1c  2**0
+ 18 .debug_line   0000e406  00000000  00000000  00047ddc  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 19 .debug_str    00090191  00000000  00000000  00056226  2**0
+ 19 .debug_str    00090192  00000000  00000000  000561e2  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 20 .debug_frame  00004ba4  00000000  00000000  000e63b8  2**2
+ 20 .debug_frame  00004ba4  00000000  00000000  000e6374  2**2
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 21 .debug_line_str 0000007d  00000000  00000000  000eaf5c  2**0
+ 21 .debug_line_str 00000082  00000000  00000000  000eaf18  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
 
 Disassembly of section .text:
@@ -1477,7 +1477,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   ProgramStart("Mortor test!");
  80010e8:	4879      	ldr	r0, [pc, #484]	; (80012d0 <main+0x208>)
- 80010ea:	f000 fbd1 	bl	8001890 <ProgramStart>
+ 80010ea:	f000 fba9 	bl	8001840 <ProgramStart>
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
  80010ee:	2100      	movs	r1, #0
  80010f0:	4878      	ldr	r0, [pc, #480]	; (80012d4 <main+0x20c>)
@@ -2616,145 +2616,146 @@ __STATIC_FORCEINLINE void __disable_irq(void)
  800181c:	e7fe      	b.n	800181c <Error_Handler+0x8>
 	...
 
-08001820 <__io_getchar>:
-//#include "C:\Users\user\STM32Cube\Repository\STM32Cube_FW_F4_V1.28.1\Drivers\STM32F4xx_HAL_Driver\inc\stm32f4xx_hal_i2c.h"
+08001820 <StandBy>:
 extern UART_HandleTypeDef huart2;
 
+//#include "C:\Users\user\STM32Cube\Repository\STM32Cube_FW_F4_V1.28.1\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_i2c.h"
+
+void StandBy()
+{
+ 8001820:	b580      	push	{r7, lr}
+ 8001822:	af00      	add	r7, sp, #0
+	while(HAL_GPIO_ReadPin(B1_GPIO_Port,B1_Pin));
+ 8001824:	bf00      	nop
+ 8001826:	f44f 5100 	mov.w	r1, #8192	; 0x2000
+ 800182a:	4804      	ldr	r0, [pc, #16]	; (800183c <StandBy+0x1c>)
+ 800182c:	f000 fdf6 	bl	800241c <HAL_GPIO_ReadPin>
+ 8001830:	4603      	mov	r3, r0
+ 8001832:	2b00      	cmp	r3, #0
+ 8001834:	d1f7      	bne.n	8001826 <StandBy+0x6>
+}
+ 8001836:	bf00      	nop
+ 8001838:	bf00      	nop
+ 800183a:	bd80      	pop	{r7, pc}
+ 800183c:	40020800 	.word	0x40020800
+
+08001840 <ProgramStart>:
+void ProgramStart(char * str)
+{
+ 8001840:	b580      	push	{r7, lr}
+ 8001842:	b082      	sub	sp, #8
+ 8001844:	af00      	add	r7, sp, #0
+ 8001846:	6078      	str	r0, [r7, #4]
+	//printf("\033[2J\033[0;0H");// esc
+	cls();
+ 8001848:	f000 f858 	bl	80018fc <cls>
+	Cursor(0,0);
+ 800184c:	2100      	movs	r1, #0
+ 800184e:	2000      	movs	r0, #0
+ 8001850:	f000 f85e 	bl	8001910 <Cursor>
+	printf("Program Name - %s\r\n", str);
+ 8001854:	6879      	ldr	r1, [r7, #4]
+ 8001856:	480a      	ldr	r0, [pc, #40]	; (8001880 <ProgramStart+0x40>)
+ 8001858:	f003 fd68 	bl	800532c <iprintf>
+	printf("Press Blue-button(B1) to Start...\r\n");
+ 800185c:	4809      	ldr	r0, [pc, #36]	; (8001884 <ProgramStart+0x44>)
+ 800185e:	f003 fdcb 	bl	80053f8 <puts>
+	StandBy();
+ 8001862:	f7ff ffdd 	bl	8001820 <StandBy>
+	setvbuf(stdin, NULL, _IONBF, 0); // buffer clear
+ 8001866:	4b08      	ldr	r3, [pc, #32]	; (8001888 <ProgramStart+0x48>)
+ 8001868:	681b      	ldr	r3, [r3, #0]
+ 800186a:	6858      	ldr	r0, [r3, #4]
+ 800186c:	2300      	movs	r3, #0
+ 800186e:	2202      	movs	r2, #2
+ 8001870:	2100      	movs	r1, #0
+ 8001872:	f003 fdc9 	bl	8005408 <setvbuf>
+}
+ 8001876:	bf00      	nop
+ 8001878:	3708      	adds	r7, #8
+ 800187a:	46bd      	mov	sp, r7
+ 800187c:	bd80      	pop	{r7, pc}
+ 800187e:	bf00      	nop
+ 8001880:	08008ee8 	.word	0x08008ee8
+ 8001884:	08008efc 	.word	0x08008efc
+ 8001888:	20000064 	.word	0x20000064
+
+0800188c <__io_getchar>:
 
 int __io_getchar(void)
 {
- 8001820:	b580      	push	{r7, lr}
- 8001822:	b082      	sub	sp, #8
- 8001824:	af00      	add	r7, sp, #0
-   char ch;
-   //데이터를 받을 때까지 기다려야 하므로 while을 사용해야 함
-   while(HAL_UART_Receive(&huart2, &ch, 1, 10) != HAL_OK);
- 8001826:	bf00      	nop
- 8001828:	1df9      	adds	r1, r7, #7
- 800182a:	230a      	movs	r3, #10
- 800182c:	2201      	movs	r2, #1
- 800182e:	480d      	ldr	r0, [pc, #52]	; (8001864 <__io_getchar+0x44>)
- 8001830:	f002 fa7d 	bl	8003d2e <HAL_UART_Receive>
- 8001834:	4603      	mov	r3, r0
- 8001836:	2b00      	cmp	r3, #0
- 8001838:	d1f6      	bne.n	8001828 <__io_getchar+0x8>
-   HAL_UART_Transmit(&huart2, &ch, 1, 10); // echo: Serial 통신에서 받은 데이터를 그대로 돌려주는 것
- 800183a:	1df9      	adds	r1, r7, #7
- 800183c:	230a      	movs	r3, #10
- 800183e:	2201      	movs	r2, #1
- 8001840:	4808      	ldr	r0, [pc, #32]	; (8001864 <__io_getchar+0x44>)
- 8001842:	f002 f9e9 	bl	8003c18 <HAL_UART_Transmit>
-   if(ch == '\r') HAL_UART_Transmit(&huart2, "\n", 1, 10);
- 8001846:	79fb      	ldrb	r3, [r7, #7]
- 8001848:	2b0d      	cmp	r3, #13
- 800184a:	d105      	bne.n	8001858 <__io_getchar+0x38>
- 800184c:	230a      	movs	r3, #10
- 800184e:	2201      	movs	r2, #1
- 8001850:	4905      	ldr	r1, [pc, #20]	; (8001868 <__io_getchar+0x48>)
- 8001852:	4804      	ldr	r0, [pc, #16]	; (8001864 <__io_getchar+0x44>)
- 8001854:	f002 f9e0 	bl	8003c18 <HAL_UART_Transmit>
-   return ch;
- 8001858:	79fb      	ldrb	r3, [r7, #7]
+ 800188c:	b580      	push	{r7, lr}
+ 800188e:	b082      	sub	sp, #8
+ 8001890:	af00      	add	r7, sp, #0
+	char ch;
+	while(!(HAL_UART_Receive(&huart2, &ch, 1, 10) == HAL_OK));
+ 8001892:	bf00      	nop
+ 8001894:	1df9      	adds	r1, r7, #7
+ 8001896:	230a      	movs	r3, #10
+ 8001898:	2201      	movs	r2, #1
+ 800189a:	480d      	ldr	r0, [pc, #52]	; (80018d0 <__io_getchar+0x44>)
+ 800189c:	f002 fa47 	bl	8003d2e <HAL_UART_Receive>
+ 80018a0:	4603      	mov	r3, r0
+ 80018a2:	2b00      	cmp	r3, #0
+ 80018a4:	d1f6      	bne.n	8001894 <__io_getchar+0x8>
+	HAL_UART_Transmit(&huart2, &ch, 1, 10);
+ 80018a6:	1df9      	adds	r1, r7, #7
+ 80018a8:	230a      	movs	r3, #10
+ 80018aa:	2201      	movs	r2, #1
+ 80018ac:	4808      	ldr	r0, [pc, #32]	; (80018d0 <__io_getchar+0x44>)
+ 80018ae:	f002 f9b3 	bl	8003c18 <HAL_UART_Transmit>
+	if(ch == '\r') HAL_UART_Transmit(&huart2, "\n", 1, 10);
+ 80018b2:	79fb      	ldrb	r3, [r7, #7]
+ 80018b4:	2b0d      	cmp	r3, #13
+ 80018b6:	d105      	bne.n	80018c4 <__io_getchar+0x38>
+ 80018b8:	230a      	movs	r3, #10
+ 80018ba:	2201      	movs	r2, #1
+ 80018bc:	4905      	ldr	r1, [pc, #20]	; (80018d4 <__io_getchar+0x48>)
+ 80018be:	4804      	ldr	r0, [pc, #16]	; (80018d0 <__io_getchar+0x44>)
+ 80018c0:	f002 f9aa 	bl	8003c18 <HAL_UART_Transmit>
+	return ch;
+ 80018c4:	79fb      	ldrb	r3, [r7, #7]
 }
- 800185a:	4618      	mov	r0, r3
- 800185c:	3708      	adds	r7, #8
- 800185e:	46bd      	mov	sp, r7
- 8001860:	bd80      	pop	{r7, pc}
- 8001862:	bf00      	nop
- 8001864:	200002cc 	.word	0x200002cc
- 8001868:	08008ee8 	.word	0x08008ee8
-
-0800186c <__io_putchar>:
-int __io_putchar(int ch) // Lowest output Function
-{
- 800186c:	b580      	push	{r7, lr}
- 800186e:	b082      	sub	sp, #8
- 8001870:	af00      	add	r7, sp, #0
- 8001872:	6078      	str	r0, [r7, #4]
-   HAL_UART_Transmit(&huart2, &ch, 1, 10); // timeout: 10ms
- 8001874:	1d39      	adds	r1, r7, #4
- 8001876:	230a      	movs	r3, #10
- 8001878:	2201      	movs	r2, #1
- 800187a:	4804      	ldr	r0, [pc, #16]	; (800188c <__io_putchar+0x20>)
- 800187c:	f002 f9cc 	bl	8003c18 <HAL_UART_Transmit>
-   return ch;
- 8001880:	687b      	ldr	r3, [r7, #4]
-}
- 8001882:	4618      	mov	r0, r3
- 8001884:	3708      	adds	r7, #8
- 8001886:	46bd      	mov	sp, r7
- 8001888:	bd80      	pop	{r7, pc}
- 800188a:	bf00      	nop
- 800188c:	200002cc 	.word	0x200002cc
-
-08001890 <ProgramStart>:
-void ProgramStart(char *str)
-{
- 8001890:	b580      	push	{r7, lr}
- 8001892:	b082      	sub	sp, #8
- 8001894:	af00      	add	r7, sp, #0
- 8001896:	6078      	str	r0, [r7, #4]
-   //printf("\033[2J\033[0;0H"); // printf("\033[2J"); : 화면 Clear
-   cls();
- 8001898:	f000 f830 	bl	80018fc <cls>
-   Cursor(0,0);
- 800189c:	2100      	movs	r1, #0
- 800189e:	2000      	movs	r0, #0
- 80018a0:	f000 f836 	bl	8001910 <Cursor>
-   printf("Program Name - %s\r\n", str);
- 80018a4:	6879      	ldr	r1, [r7, #4]
- 80018a6:	480a      	ldr	r0, [pc, #40]	; (80018d0 <ProgramStart+0x40>)
- 80018a8:	f003 fd40 	bl	800532c <iprintf>
-   printf("Press Blue-button(B1) to Start ...\r\n");
- 80018ac:	4809      	ldr	r0, [pc, #36]	; (80018d4 <ProgramStart+0x44>)
- 80018ae:	f003 fda3 	bl	80053f8 <puts>
-   StandBy();
- 80018b2:	f000 f813 	bl	80018dc <StandBy>
-   setvbuf(stdin, NULL, _IONBF, 0);
- 80018b6:	4b08      	ldr	r3, [pc, #32]	; (80018d8 <ProgramStart+0x48>)
- 80018b8:	681b      	ldr	r3, [r3, #0]
- 80018ba:	6858      	ldr	r0, [r3, #4]
- 80018bc:	2300      	movs	r3, #0
- 80018be:	2202      	movs	r2, #2
- 80018c0:	2100      	movs	r1, #0
- 80018c2:	f003 fda1 	bl	8005408 <setvbuf>
-}
- 80018c6:	bf00      	nop
+ 80018c6:	4618      	mov	r0, r3
  80018c8:	3708      	adds	r7, #8
  80018ca:	46bd      	mov	sp, r7
  80018cc:	bd80      	pop	{r7, pc}
  80018ce:	bf00      	nop
- 80018d0:	08008eec 	.word	0x08008eec
- 80018d4:	08008f00 	.word	0x08008f00
- 80018d8:	20000064 	.word	0x20000064
+ 80018d0:	200002cc 	.word	0x200002cc
+ 80018d4:	08008f20 	.word	0x08008f20
 
-080018dc <StandBy>:
+080018d8 <__io_putchar>:
 
-void StandBy()
+int __io_putchar(int ch)
 {
- 80018dc:	b580      	push	{r7, lr}
- 80018de:	af00      	add	r7, sp, #0
-   while(HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin));
- 80018e0:	bf00      	nop
- 80018e2:	f44f 5100 	mov.w	r1, #8192	; 0x2000
- 80018e6:	4804      	ldr	r0, [pc, #16]	; (80018f8 <StandBy+0x1c>)
- 80018e8:	f000 fd98 	bl	800241c <HAL_GPIO_ReadPin>
- 80018ec:	4603      	mov	r3, r0
- 80018ee:	2b00      	cmp	r3, #0
- 80018f0:	d1f7      	bne.n	80018e2 <StandBy+0x6>
+ 80018d8:	b580      	push	{r7, lr}
+ 80018da:	b082      	sub	sp, #8
+ 80018dc:	af00      	add	r7, sp, #0
+ 80018de:	6078      	str	r0, [r7, #4]
+	HAL_UART_Transmit(&huart2, &ch, 1, 10); //
+ 80018e0:	1d39      	adds	r1, r7, #4
+ 80018e2:	230a      	movs	r3, #10
+ 80018e4:	2201      	movs	r2, #1
+ 80018e6:	4804      	ldr	r0, [pc, #16]	; (80018f8 <__io_putchar+0x20>)
+ 80018e8:	f002 f996 	bl	8003c18 <HAL_UART_Transmit>
+	return ch;
+ 80018ec:	687b      	ldr	r3, [r7, #4]
 }
- 80018f2:	bf00      	nop
- 80018f4:	bf00      	nop
- 80018f6:	bd80      	pop	{r7, pc}
- 80018f8:	40020800 	.word	0x40020800
+ 80018ee:	4618      	mov	r0, r3
+ 80018f0:	3708      	adds	r7, #8
+ 80018f2:	46bd      	mov	sp, r7
+ 80018f4:	bd80      	pop	{r7, pc}
+ 80018f6:	bf00      	nop
+ 80018f8:	200002cc 	.word	0x200002cc
 
 080018fc <cls>:
 
-void cls() // 화면 clear
+void cls()
 {
  80018fc:	b580      	push	{r7, lr}
  80018fe:	af00      	add	r7, sp, #0
-   printf("\033[2J");
+
+	printf("\033[2J");
  8001900:	4802      	ldr	r0, [pc, #8]	; (800190c <cls+0x10>)
  8001902:	f003 fd13 	bl	800532c <iprintf>
 }
@@ -2764,7 +2765,6 @@ void cls() // 화면 clear
  800190c:	08008f24 	.word	0x08008f24
 
 08001910 <Cursor>:
-
 void Cursor(int x, int y)
 {
  8001910:	b580      	push	{r7, lr}
@@ -2772,14 +2772,15 @@ void Cursor(int x, int y)
  8001914:	af00      	add	r7, sp, #0
  8001916:	6078      	str	r0, [r7, #4]
  8001918:	6039      	str	r1, [r7, #0]
-   char buf[20];
-   sprintf(buf, "\033[%d;%dH", y,x);
+	char buf[20];
+	sprintf(buf,"\033[%d;%dH",y,x);
  800191a:	f107 000c 	add.w	r0, r7, #12
  800191e:	687b      	ldr	r3, [r7, #4]
  8001920:	683a      	ldr	r2, [r7, #0]
  8001922:	4906      	ldr	r1, [pc, #24]	; (800193c <Cursor+0x2c>)
  8001924:	f003 fe1e 	bl	8005564 <siprintf>
-   puts(buf);
+	//printf("%s",buf);
+	puts(buf);
  8001928:	f107 030c 	add.w	r3, r7, #12
  800192c:	4618      	mov	r0, r3
  800192e:	f003 fd63 	bl	80053f8 <puts>
@@ -3460,7 +3461,7 @@ __attribute__((weak)) int _read(int file, char *ptr, int len)
  8001c5c:	e00a      	b.n	8001c74 <_read+0x28>
   {
     *ptr++ = __io_getchar();
- 8001c5e:	f7ff fddf 	bl	8001820 <__io_getchar>
+ 8001c5e:	f7ff fe15 	bl	800188c <__io_getchar>
  8001c62:	4601      	mov	r1, r0
  8001c64:	68bb      	ldr	r3, [r7, #8]
  8001c66:	1c5a      	adds	r2, r3, #1
@@ -3509,7 +3510,7 @@ __attribute__((weak)) int _write(int file, char *ptr, int len)
  8001c9c:	60ba      	str	r2, [r7, #8]
  8001c9e:	781b      	ldrb	r3, [r3, #0]
  8001ca0:	4618      	mov	r0, r3
- 8001ca2:	f7ff fde3 	bl	800186c <__io_putchar>
+ 8001ca2:	f7ff fe19 	bl	80018d8 <__io_putchar>
   for (DataIdx = 0; DataIdx < len; DataIdx++)
  8001ca6:	697b      	ldr	r3, [r7, #20]
  8001ca8:	3301      	adds	r3, #1

@@ -141,7 +141,6 @@ int main(void)
   while (1)
   {
 	  printf("%f\r\n", dist);
-	  printf("premode: %d, mode: %d\r\n", pre_mode, mode);
 	  if(dist == -1) {}
 	  else if(dist < 150) {
 		  mode = 5;

@@ -31,15 +31,19 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>Core/Src/mylib.c</name>
+			<name>Core/Src/myLib.c</name>
 			<type>1</type>
-			<locationURI>copy_PARENT/myLib/Src/mylib.c</locationURI>
+			<locationURI>copy_PARENT1/MyLib/myLib.c</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>
 		<variable>
 			<name>copy_PARENT</name>
 			<value>$%7BPARENT-4-PROJECT_LOC%7D/source/repos/STM32</value>
+		</variable>
+		<variable>
+			<name>copy_PARENT1</name>
+			<value>$%7BPARENT-3-PROJECT_LOC%7D/STM32</value>
 		</variable>
 	</variableList>
 </projectDescription>
