@@ -89,6 +89,10 @@ void Error_Handler(void);
 #define IN2_GPIO_Port GPIOB
 #define IN3_Pin GPIO_PIN_5
 #define IN3_GPIO_Port GPIOB
+#define UART1_TX_Pin GPIO_PIN_6
+#define UART1_TX_GPIO_Port GPIOB
+#define UART1_RX_Pin GPIO_PIN_7
+#define UART1_RX_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

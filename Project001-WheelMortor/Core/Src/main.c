@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,6 +44,7 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
+UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -57,6 +58,7 @@ static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM1_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -90,6 +92,55 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	  break;
   }
 }
+
+#define BUF_SIZE 100
+char buf1[BUF_SIZE], buf2[BUF_SIZE]; // DMA Buffer
+char dum1, dum2;
+int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0, temp = 0;
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+   if(huart == &huart1)
+   {
+      buf1[tail1++] = dum1;
+      //HAL_UART_Transmit(&huart2, &dum1/*== buf1+t1-1*/, 1, 10);      // putty print
+      if(dum1 == '\r')
+      {
+         //CheckCMD(buf1);
+         char comp_buf[BUF_SIZE];
+         if(tail1 > 15) {
+            sprintf(comp_buf, "%s\n\0", &buf1[tail1 - 7]);
+            //printf("%s", comp_buf);
+            if(!strncmp(comp_buf, "9B0C60", 6)) {
+              printf("\r\nI found it%d\r\n\r\n", temp++);
+              mode = 0;
+              pre_mode = mode;
+           }
+         }
+
+
+         tail1 = 0;
+      }
+      HAL_UART_Receive_IT(&huart1, &dum1, 1);         // interrupt chain
+   }
+
+   else if(huart == &huart2)
+   {
+      buf2[tail2++] = dum2;
+      HAL_UART_Transmit(&huart2, &dum2, 1, 10); // terminal echo
+      if(dum2 == '\r')  // CR : 0x0d
+      {
+         HAL_UART_Transmit(&huart2, "\n", 1, 10); // terminal echo
+
+         buf2[tail2++] = '\n'; // == HAL_UART_Transmit(&huart1, "\n", 1, 10);
+         HAL_UART_Transmit(&huart1, buf2, tail2, 10);   // AT Command
+//         HAL_UART_Transmit(&huart1, "\n", 1, 10);
+         tail2 = 0;
+      }
+      HAL_UART_Receive_IT(&huart2, &dum2, 1);
+   }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -124,6 +175,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM1_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   ProgramStart("Mortor test!");
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
@@ -133,6 +185,10 @@ int main(void)
   htim1.Instance->CCR1 = htim1.Instance->ARR / 3;
   htim1.Instance->CCR3 = htim1.Instance->ARR / 3;
   htim3.Instance->CCR2 = 10;
+  UART_Start_Receive_IT(&huart1, &dum1, 1);
+  UART_Start_Receive_IT(&huart2, &dum2, 1);
+
+
 
   /* USER CODE END 2 */
 
@@ -140,7 +196,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  printf("%f\r\n", dist);
+	  //printf("%f\r\n", dist);
 	  if(dist == -1) {}
 	  else if(dist < 150) {
 		  mode = 5;
@@ -187,6 +243,9 @@ int main(void)
 		  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
 		  break;
 	  }
+	  HAL_UART_Transmit(&huart1, "AT+INQ\r\n", 8, 10);
+	  HAL_Delay(1500);
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -410,6 +469,39 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 2 */
   HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 9600;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 
