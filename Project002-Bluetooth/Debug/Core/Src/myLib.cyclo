@@ -1,0 +1,6 @@
+C:/Users/user/source/repos/STM32/MyLib/myLib.c:14:6:StandBy	2
+C:/Users/user/source/repos/STM32/MyLib/myLib.c:18:6:ProgramStart	1
+C:/Users/user/source/repos/STM32/MyLib/myLib.c:29:5:__io_getchar	3
+C:/Users/user/source/repos/STM32/MyLib/myLib.c:38:5:__io_putchar	1
+C:/Users/user/source/repos/STM32/MyLib/myLib.c:44:6:cls	1
+C:/Users/user/source/repos/STM32/MyLib/myLib.c:49:6:Cursor	1
