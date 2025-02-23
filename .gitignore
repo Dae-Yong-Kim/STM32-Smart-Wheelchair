@@ -6,6 +6,8 @@
 *.ko
 *.obj
 *.elf
+*.bin
+*.list
 
 # Linker output
 *.ilk
@@ -41,6 +43,12 @@
 *.su
 *.idb
 *.pdb
+*.d
+*.dep
+*.dmp
+*.bak
+*.log
+*.tmp
 
 # Kernel Module Compile Results
 *.mod*
@@ -50,3 +58,18 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# CubeIDE 빌드 폴더
+/Debug/
+/Release/
+
+# CubeIDE 설정 파일 (사용자마다 달라질 수 있음)
+/.settings/
+/.vscode/
+/mxprojectdata/
+/mxfile
+
+# Git 충돌 시 불필요한 파일
+*.swp
+*.swo
+*.swn
