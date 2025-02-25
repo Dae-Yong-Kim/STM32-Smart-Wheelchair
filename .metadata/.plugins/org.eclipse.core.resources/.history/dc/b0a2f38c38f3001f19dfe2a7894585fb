@@ -62,23 +62,7 @@ static void MX_USART1_UART_Init(void);
 #define BUF_SIZE 100
 char buf1[BUF_SIZE], buf2[BUF_SIZE]; // DMA Buffer
 char dum1, dum2;
-int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0, temp1 = 0, temp2 = 0, mode = 0; // mode 0: AT command, 1: regularly send AT+INQ and detect entered slave address
-int sn; //slave number
-char* slave_addr[5] = {"8E4591", "15DA51", "37826F", "A7EF18", "9B0C60"}; // slave address
-
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  switch(GPIO_Pin) {
-	  case GPIO_PIN_13:
-		  if(mode) {
-			  mode = 0;
-		  }
-		  else {
-			  mode = 1;
-		  }
-		  break;
-  }
-}
+int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0, temp = 0, mode = 0; // mode 0: AT command, 1: regularly send AT+INQ
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -97,8 +81,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 				  sprintf(comp_buf, "%s\n\0", &buf1[tail1 - 7]);
 				  //printf("%s", comp_buf);
 				  //if(!strncmp(comp_buf, "9B0C60", 6)) {
-				  if(!strncmp(comp_buf, slave_addr[sn], 6)) {
-					  printf("I found it%d\r\n\r\n", temp2++);
+				  if(!strncmp(comp_buf, "8E4591", 6)) {
+					  printf("\r\nI found it%d\r\n\r\n", temp++);
 				  }
 			  }
     	  }
@@ -160,8 +144,6 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   ProgramStart("Bluetooth Test - Start");
-  printf("input slave:");
-  scanf("%d", &sn);
   UART_Start_Receive_IT(&huart1, &dum1, 1);
   UART_Start_Receive_IT(&huart2, &dum2, 1);
 
@@ -172,7 +154,6 @@ int main(void)
   while (1)
   {
 	  if(mode) {
-		  printf("%d:\r\n", temp1++);
 		  HAL_UART_Transmit(&huart1, "AT+INQ\r\n", 8, 10);
 		  HAL_Delay(1500);
 	  }
