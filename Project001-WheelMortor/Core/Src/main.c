@@ -66,31 +66,124 @@ static void MX_USART1_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 int mode = 0, pre_mode = 0;
-double dist = 0;
+double FF_dist = 0, FR_dist = 0, FL_dist = 0;
+
+void Motor_Mode(int x)
+{
+	switch(x) {
+		  case 0:		// Stop
+			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
+			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 1);
+			  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
+			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
+			  break;
+		  case 1:		// Fast Front
+			  htim1.Instance->CCR1 = 300;
+			  htim1.Instance->CCR3 = 300;
+
+			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
+			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 0);
+			  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
+			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
+			  break;
+		  case 2:		// Rear
+			  htim1.Instance->CCR1 = 300;
+			  htim1.Instance->CCR3 = 300;
+			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 0);
+			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 1);
+			  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 0);
+			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
+			  break;
+		  case 3:		// Quick Left
+			  htim1.Instance->CCR1 = 300;
+			  htim1.Instance->CCR3 = 300;
+
+			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 0);
+			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 1);
+			  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
+			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
+			  break;
+		  case 4:		// Soft Left
+			  htim1.Instance->CCR1 = 100;		//ENA
+			  htim1.Instance->CCR3 = 300;		//ENB
+
+			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
+			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 0);
+			  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
+			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
+			  break;
+		  case 5:		// Quick Right
+			  htim1.Instance->CCR1 = 300;
+			  htim1.Instance->CCR3 = 300;
+
+			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
+			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 0);
+			  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 0);
+			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
+			  break;
+		  case 6:		// Slow Right
+			  htim1.Instance->CCR1 = 300;		//ENA
+			  htim1.Instance->CCR3 = 100;		//ENB
+
+			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
+			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 0);
+			  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
+			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
+			  break;
+	}
+}
+
+void Motor_Backward()
+{
+
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch(GPIO_Pin) {
   case B1_Pin:
-	  if(mode != 5)	{
-		  mode++;	// 1: Front, 2: Rear, 3: Left, 4: Right, 0: Stop, 5: Stop (Too Close)
-		  if(mode == 5)	mode = 0;
-		  pre_mode = mode;
-	  }
+	  mode++;
+	  if(mode == 8)	mode = 0;
+//	  if(mode != 5)	{
+//		  mode++;	// 1: Front, 2: Rear, 3: Left, 4: Right, 0: Stop, 5: Stop (Too Close)
+//		  if(mode == 5)	mode = 0;
+//		  pre_mode = mode;
+//	  }
 	  break;
-  case Echo_Pin:
-	  if(HAL_GPIO_ReadPin(Echo_GPIO_Port, Echo_Pin)) {
+  case FFecho_Pin:
+	  if(HAL_GPIO_ReadPin(FFecho_GPIO_Port, FFecho_Pin)) {
 		  htim2.Instance->CNT = 0;
 	  }
 	  else {
 		  if(htim2.Instance->CNT > 60000) {
-			  dist = -1;
+			  FF_dist = -1;
 		  }
 		  else {
-			  dist = htim2.Instance->CNT * 0.17;
+			  FF_dist = htim2.Instance->CNT * 0.17;
 		  }
 	  }
 	  break;
-  }
+  case FRecho_Pin:
+  	  if(!HAL_GPIO_ReadPin(FRecho_GPIO_Port, FRecho_Pin)) {
+  		if(htim2.Instance->CNT > 60000) {
+  			FR_dist = -1;
+  		}
+  		else {
+  			FR_dist = htim2.Instance->CNT * 0.17;
+  		}
+  	  }
+  	  break;
+	case FLecho_Pin:
+  	  if(!HAL_GPIO_ReadPin(FLecho_GPIO_Port, FLecho_Pin)) {
+  		if(htim2.Instance->CNT > 60000) {
+			FL_dist = -1;
+		  }
+		  else {
+			FL_dist = htim2.Instance->CNT * 0.17;
+		  }
+  	  }
+  	  break;
+    }
 }
 
 #define BUF_SIZE 100
@@ -123,7 +216,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
       }
       HAL_UART_Receive_IT(&huart1, &dum1, 1);         // interrupt chain
    }
-
    else if(huart == &huart2)
    {
       buf2[tail2++] = dum2;
@@ -178,17 +270,15 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   ProgramStart("Mortor test!");
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);	// Motor PWM1
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);	// Motor PWM2
   HAL_TIM_Base_Start(&htim2);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   htim1.Instance->CCR1 = htim1.Instance->ARR / 3;
   htim1.Instance->CCR3 = htim1.Instance->ARR / 3;
-  htim3.Instance->CCR2 = 10;
+  //htim3.Instance->CCR2 = 10;
   UART_Start_Receive_IT(&huart1, &dum1, 1);
   UART_Start_Receive_IT(&huart2, &dum2, 1);
-
-
 
   /* USER CODE END 2 */
 
@@ -196,55 +286,53 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  //printf("%f\r\n", dist);
-	  if(dist == -1) {}
-	  else if(dist < 150) {
-		  mode = 5;
+	  printf("FF_dist : %f, FR_dist : %f, FL_dist : %f \r\n", FF_dist, FR_dist, FL_dist);
+	  if(FF_dist == -1 || FR_dist == -1 || FL_dist == -1) {}
+	  else if(FF_dist < 400 && FR_dist < 400 && FL_dist < 400) {	// MoveBackWard
+		  Motor_Mode(0);		// Stop
+		  HAL_Delay(50);
+		  Motor_Mode(2);		// Rear
+		  HAL_Delay(500);
+		  if(FR_dist < FL_dist){
+			  Motor_Mode(3);	// Quick Left
+			  HAL_Delay(800);
+		  }
+		  else if(FR_dist > FL_dist){
+			  Motor_Mode(5);	// Quick Right
+			  HAL_Delay(800);
+		  }
 	  }
-	  else {
-		  mode = pre_mode;
+	  else if((FR_dist < 400) && (FR_dist < FL_dist)){
+		  Motor_Mode(4); // Soft Left
+		  HAL_Delay(800);
+	  }
+	  else if((FL_dist < 400) && (FR_dist > FL_dist)){
+		  Motor_Mode(6); // Soft right
+		  HAL_Delay(800);
+	  }
+//	  else if(){
+//		  mode = 3;		// Rear
+//	  }
+//	  else if(FF_dist < 200 && FR_dist < 200){
+//		  mode = 4;		// Quick Left
+//	  }
+//	  else if(FR_dist < 200){
+//		  mode = 5;		// Soft Left
+//	  }
+//	  else if(FF_dist < 100 && FL_dist < 100){
+//		  mode = 6;		// Quick Right
+//	  }
+//	  else if(FL_dist < 100){
+//		  mode = 7;		// Soft Right
+//	  }
+	  else{
+		  Motor_Mode(1);		// Front
 	  }
 
-	  switch(mode) {
-	  case 0:
-		  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
-		  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 1);
-		  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
-		  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
-		  break;
-	  case 1:
-		  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
-		  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 0);
-		  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
-		  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
-		  break;
-	  case 2:
-		  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 0);
-		  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 1);
-		  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 0);
-		  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
-		  break;
-	  case 3:
-		  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 0);
-		  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 1);
-		  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
-		  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
-		  break;
-	  case 4:
-		  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
-		  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 0);
-		  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 0);
-		  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
-		  break;
-	  case 5:
-		  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
-		  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 1);
-		  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
-		  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
-		  break;
-	  }
+	  //Motor_Mode();
+
 	  HAL_UART_Transmit(&huart1, "AT+INQ\r\n", 8, 10);
-	  HAL_Delay(1500);
+	  HAL_Delay(100);
 
     /* USER CODE END WHILE */
 
@@ -435,6 +523,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 0 */
 
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
   TIM_OC_InitTypeDef sConfigOC = {0};
 
@@ -447,6 +536,15 @@ static void MX_TIM3_Init(void)
   htim3.Init.Period = 60000-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
   if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
@@ -458,7 +556,7 @@ static void MX_TIM3_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 10;
+  sConfigOC.Pulse = 10-1;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
@@ -574,6 +672,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : FLecho_Pin FRecho_Pin */
+  GPIO_InitStruct.Pin = FLecho_Pin|FRecho_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /*Configure GPIO pins : IN1_Pin IN4_Pin IN2_Pin IN3_Pin */
   GPIO_InitStruct.Pin = IN1_Pin|IN4_Pin|IN2_Pin|IN3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -581,13 +685,19 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : Echo_Pin */
-  GPIO_InitStruct.Pin = Echo_Pin;
+  /*Configure GPIO pin : FFecho_Pin */
+  GPIO_InitStruct.Pin = FFecho_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(Echo_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(FFecho_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
