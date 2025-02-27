@@ -73,3 +73,5 @@ dkms.conf
 *.swp
 *.swo
 *.swn
+
+*.metadata/
