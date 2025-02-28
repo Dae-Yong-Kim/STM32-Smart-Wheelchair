@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "max30102_for_stm32_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,7 +56,7 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-
+extern TIM_HandleTypeDef htim1;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -198,6 +199,39 @@ void SysTick_Handler(void)
 /* please refer to the startup file (startup_stm32f4xx.s).                    */
 /******************************************************************************/
 
-/* USER CODE BEGIN 1 */
+/**
+  * @brief This function handles TIM1 update interrupt and TIM10 global interrupt.
+  */
+void TIM1_UP_TIM10_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_UP_TIM10_IRQn 0 */
 
+  /* USER CODE END TIM1_UP_TIM10_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_UP_TIM10_IRQn 1 */
+
+  /* USER CODE END TIM1_UP_TIM10_IRQn 1 */
+}
+
+/* USER CODE BEGIN 1 */
+extern max30102_t sensor;  // MAX30102 ?��?�� 구조�? ?���? ?��?��
+extern volatile uint32_t heart_rate_sum;
+extern volatile uint32_t heart_rate_count;
+// stm32f4xx_it.c ?��?��?�� 추�?
+extern I2C_HandleTypeDef hi2c1;
+// I2C ?��벤트 ?��?��?��?�� ?��?��?��
+void I2C1_EV_IRQHandler(void) {  // HAL_I2C_EV_IRQHandler�? ???��?��?�� ?��름으�? �?�?
+    // 기본 HAL I2C ?��벤트 ?��?��?��?�� 처리
+    HAL_I2C_EV_IRQHandler(&hi2c1);  // I2C1 ?��?��?���? ?��?��?��?�� 기본 HAL 처리
+
+    // MAX30102?��?�� ?��박수�? ?���? 계산?��?�� 로직 추�?
+    if (max30102_has_interrupt(&sensor)) {
+        max30102_interrupt_handler(&sensor);
+        int heart_rate = max30102_get_heart_rate(&sensor);
+        if (heart_rate > 0) {
+            heart_rate_sum += heart_rate;
+            heart_rate_count++;
+        }
+    }
+}
 /* USER CODE END 1 */

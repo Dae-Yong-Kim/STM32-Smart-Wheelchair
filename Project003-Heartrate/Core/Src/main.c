@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "max30102_for_stm32_hal.h" // MAX30102 관련 헤더 포함
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -41,8 +42,11 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
-
+TIM_HandleTypeDef htim1;
 UART_HandleTypeDef huart2;
+
+volatile uint32_t heart_rate_sum = 0;
+volatile uint32_t heart_rate_count = 0;
 
 /* USER CODE BEGIN PV */
 
@@ -53,35 +57,16 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_TIM1_Init(void);
+void send_average_heart_rate(void);  // 평균 심박수 전송 함수 선언
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim); // 타이머 인터럽트 콜백 함수 선언
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-// ?��?��?��?�� ?��?��?��: ?��?��?�� ?��?�� �?비�? ?���? ?��출됩?��?��.
-void USART1_IRQHandler(void) {
-    // ?��?��?��?�� 발생 ?�� USART ?��?��?�� ?���?
-    HAL_UART_IRQHandler(&huart1);
-}
-
-// USART ?��?��?�� ?��료된 ?�� ?��출되?�� 콜백 ?��?��
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == USART1) {
-        // ?��?�� ?���? ?�� 추�? ?��?�� (?��?�� ?��?��)
-    }
-}
-
-// ?��박수�? USART ?��?��?��?���? 출력?��?�� ?��?��
-void send_heart_rate_interrupt(uint32_t heart_rate) {
-    // ?��박수�? USART1?�� ?��?�� ?��?��
-    char msg[50];
-    snprintf(msg, sizeof(msg), "Heart Rate: %ld bpm\n", heart_rate);
-
-    // USART ?��?��?��?���? ?��?��?���? ?��?��
-    HAL_UART_Transmit_IT(&huart1, (uint8_t *)msg, strlen(msg));  // 비동�? ?��?��
-}
 
 /* USER CODE END 0 */
 
@@ -115,29 +100,37 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  ProgramStart("Heart Rate");
-  if (MAX30102_Init() != HAL_OK) {
-      printf("MAX30102 initialization failed!\n");
-      return -1;
+
+  /* MAX30102 센서 초기화 */
+  max30102_t sensor;
+  if (max30102_init(&hi2c1, &sensor) != MAX30102_OK) {
+    // 초기화 실패 시 처리
+    Error_Handler();
   }
-  HAL_UART_Transmit_IT(&huart1, (uint8_t *)"USART1 Interrupt Mode Active!\n", 30);
-  uint32_t heart_rate = 0;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  heart_rate = read_heart_rate_from_sensor();
-
-	 // ?��박수 출력
-	 send_heart_rate_interrupt(heart_rate);
-
-	 HAL_Delay(1000);  // 1�? 간격?���? 출력
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    // 심박수 계산 후 평균값 업데이트 (예시)
+    uint8_t heart_rate = 0;
+    if (max30102_get_heart_rate(&sensor) == MAX30102_OK) {
+        heart_rate_sum += heart_rate;
+        heart_rate_count++;
+    }
+
+    // 주기적으로 평균 심박수 전송
+    if (heart_rate_count > 0 && heart_rate_count % 100 == 0) {
+        send_average_heart_rate();
+    }
+
   }
   /* USER CODE END 3 */
 }
@@ -195,14 +188,10 @@ void SystemClock_Config(void)
   */
 static void MX_I2C1_Init(void)
 {
-
   /* USER CODE BEGIN I2C1_Init 0 */
 
   /* USER CODE END I2C1_Init 0 */
 
-  /* USER CODE BEGIN I2C1_Init 1 */
-
-  /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
   hi2c1.Init.ClockSpeed = 100000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
@@ -216,10 +205,40 @@ static void MX_I2C1_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN I2C1_Init 2 */
+}
 
-  /* USER CODE END I2C1_Init 2 */
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
 
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 8400-1;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 10000-1;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /**
@@ -229,14 +248,6 @@ static void MX_I2C1_Init(void)
   */
 static void MX_USART2_UART_Init(void)
 {
-
-  /* USER CODE BEGIN USART2_Init 0 */
-
-  /* USER CODE END USART2_Init 0 */
-
-  /* USER CODE BEGIN USART2_Init 1 */
-
-  /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
   huart2.Init.BaudRate = 115200;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
@@ -249,10 +260,6 @@ static void MX_USART2_UART_Init(void)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART2_Init 2 */
-
-  /* USER CODE END USART2_Init 2 */
-
 }
 
 /**
@@ -263,8 +270,6 @@ static void MX_USART2_UART_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
@@ -281,49 +286,4 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
-}
-
-/* USER CODE BEGIN 4 */
-
-/* USER CODE END 4 */
-
-/**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler(void)
-{
-  /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
-  /* USER CODE END Error_Handler_Debug */
-}
-
-#ifdef  USE_FULL_ASSERT
-/**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
-void assert_failed(uint8_t *file, uint32_t line)
-{
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
-}
-#endif /* USE_FULL_ASSERT */
