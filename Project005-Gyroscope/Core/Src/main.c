@@ -163,7 +163,7 @@ void ReadAcc()
   printf("aX : %2.1f, aY : %2.1f, aZ : %2.1f\r\n", aX, aY, aZ);
 }
 
-double radTodeg = 180/3.141592;
+double radTodeg = 180/(3.141592);
 double angleX = 0.0;  // Roll
 double angleY = 0.0;  // Pitch
 //double angleZ = 0.0;
@@ -178,12 +178,12 @@ void ReadAcc_Angle()
 	int acc_y = (acc[2]<<8) + acc[3];
 	int acc_z = (acc[4]<<8) + acc[5];
 
-	printf("Raw: X=%d, Y=%d, Z=%d\r\n", acc_x, acc_y, acc_z);
+	//printf("Raw: X=%d, Y=%d, Z=%d\r\n", acc_x, acc_y, acc_z);
 
-	// 2의 보수 처리 (부호 있는 16비트 값으로 변환)
-	if(acc_x > 32767) acc_x -= 65536;
-	if(acc_y > 32767) acc_y -= 65536;
-	if(acc_z > 32767) acc_z -= 65536;
+//	// 2의 보수 처리 (부호 있는 16비트 값으로 변환)
+//	if(acc_x > 32767) acc_x -= 65536;
+//	if(acc_y > 32767) acc_y -= 65536;
+//	if(acc_z > 32767) acc_z -= 65536;
 
 	// -2 ~ 2
 //	double aX = acc_x / 16384;	// g Value
@@ -224,7 +224,6 @@ void ReadAcc_Angle()
   */
 int main(void)
 {
-
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
