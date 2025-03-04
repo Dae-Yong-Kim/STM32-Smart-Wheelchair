@@ -122,19 +122,15 @@ void ModuleSet()
 unsigned char gyro[6];
 void ReadGyro()
 {
-	// current Time Measure
-	//uint32_t currentTime = HAL_GetTick();
-
-	// GYRO Data Read : 0x43  XH-XL-YH-YL-ZH-ZL
 	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x43, 1, gyro, 6, 1000);
 
-	int gyro_x = (gyro[0]<<8) + gyro[1];
-	int gyro_y = (gyro[2]<<8) + gyro[3];
-	int gyro_z = (gyro[4]<<8) + gyro[5];
+	short gyro_x = (gyro[0]<<8) + gyro[1];
+	short gyro_y = (gyro[2]<<8) + gyro[3];
+	short gyro_z = (gyro[4]<<8) + gyro[5];
 
-	double gX = gyro_x / 131;	// degree per second Value
-	double gY = gyro_y / 131;
-	double gZ = gyro_z / 131;
+	double gX = (double)gyro_x / 131.0;	// degree per second Value
+	double gY = (double)gyro_y / 131.0;
+	double gZ = (double)gyro_z / 131.0;
 
   printf("gyroX : %2.1f, gyroY : %2.1f, gyroZ : %2.1f\r\n", gX, gY, gZ);
 }
@@ -146,21 +142,16 @@ void ReadAcc()
 	// GYRO Data Read : 0x3B  XH-XL-YH-YL-ZH-ZL
 	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x3B, 1, acc, 6, 1000);
 
-	int acc_x = (acc[0]<<8) + acc[1];
-	int acc_y = (acc[2]<<8) + acc[3];
-	int acc_z = (acc[4]<<8) + acc[5];
-
-	// -2 ~ 2
-	//	double aX = acc_x / 16384;	// g Value
-	//	double aY = acc_y / 16384;
-	//	double aZ = acc_z / 16384;
+	short acc_x = (acc[0]<<8) + acc[1];
+	short acc_y = (acc[2]<<8) + acc[3];
+	short acc_z = (acc[4]<<8) + acc[5];
 
 	// -16 ~ 16
-	double aX = acc_x / 2048;	// g Value
-	double aY = acc_y / 2048;
-	double aZ = acc_z / 2048;
+	double aX = (double)acc_x / 2048.0;	// g Value
+	double aY = (double)acc_y / 2048.0;
+	double aZ = (double)acc_z / 2048.0;
 
-  printf("aX : %2.1f, aY : %2.1f, aZ : %2.1f\r\n", aX, aY, aZ);
+	  printf("aX : %2.1f, aY : %2.1f, aZ : %2.1f\r\n", aX, aY, aZ);
 }
 
 double radTodeg = 180/3.141592;
@@ -174,28 +165,14 @@ void ReadAcc_Angle()
 	// GYRO Data Read : 0x3B  XH-XL-YH-YL-ZH-ZL
 	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x3B, 1, acc, 6, 1000);
 
-	int acc_x = (acc[0]<<8) + acc[1];
-	int acc_y = (acc[2]<<8) + acc[3];
-	int acc_z = (acc[4]<<8) + acc[5];
-
-	printf("Raw: X=%d, Y=%d, Z=%d\r\n", acc_x, acc_y, acc_z);
-
-	// 2의 보수 처리 (부호 있는 16비트 값으로 변환)
-	if(acc_x > 32767) acc_x -= 65536;
-	if(acc_y > 32767) acc_y -= 65536;
-	if(acc_z > 32767) acc_z -= 65536;
-
-	// -2 ~ 2
-//	double aX = acc_x / 16384;	// g Value
-//	double aY = acc_y / 16384;
-//	double aZ = acc_z / 16384;
+	short acc_x = (acc[0]<<8) + acc[1];
+	short acc_y = (acc[2]<<8) + acc[3];
+	short acc_z = (acc[4]<<8) + acc[5];
 
 	// -16 ~ 16
-	double aX = acc_x / 2048;	// g Value
-	double aY = acc_y / 2048;
-	double aZ = acc_z / 2048;
-
-	printf("g: X=%.3f, Y=%.3f, Z=%.3f\r\n", aX, aY, aZ);
+	double aX = (double)acc_x / 2048.0;	// g Value
+	double aY = (double)acc_y / 2048.0;
+	double aZ = (double)acc_z / 2048.0;
 
 	// Roll
 	angleX = atan2(aY, sqrt(pow(aX, 2) + pow(aZ, 2))) * radTodeg;
@@ -203,17 +180,24 @@ void ReadAcc_Angle()
 	angleY = atan2(-aX, sqrt(pow(aY, 2) + pow(aZ, 2))) * radTodeg;
 
 	printf("Roll (X): %3.1f, Pitch (Y): %3.1f\r\n", angleX, angleY);
+}
 
-//	double accel_yz = sqrt(pow(aY,2)+pow(aZ,2));
-//	angleY = atan(-aX/accel_yz)*radTodeg;
-//
-//	double accel_xz = sqrt(pow(aX,2)+pow(aZ,2));
-//	angleX = atan(aY/accel_xz)*radTodeg;
-//
-//	double accel_xy = sqrt(pow(aX,2)+pow(aY,2));
-//	angleZ = atan(accel_xy/aZ)*radTodeg;
+unsigned char gy_z[2];
+double pre_gZ = 0, total_gZ = 0;
+int before = 0;
+void Read_Z_Angle()
+{
 
-  //printf("angleX : %2.1f, angleY : %2.1f, angleZ : %2.1f\r\n", angleX, angleY, angleZ);
+	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x47, 1, gy_z, 2, 1000);
+
+	short gyro_z = (gy_z[0]<<8) + gy_z[1];
+	double gZ = (double)gyro_z / 131.0;
+
+	total_gZ += (gZ + pre_gZ) * (HAL_GetTick() - before) / 2000;
+	printf("gZ: %7.3f | total z degree: %7.3f\r\n", gZ, total_gZ);
+
+	pre_gZ = gZ;
+	before = HAL_GetTick();
 }
 
 /* USER CODE END 0 */
@@ -224,7 +208,6 @@ void ReadAcc_Angle()
   */
 int main(void)
 {
-
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -257,10 +240,12 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
-	  ReadAcc_Angle();
-	  HAL_Delay(500);
+	  //ReadGyro();
+	  Read_Z_Angle();
+	  HAL_Delay(30);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
