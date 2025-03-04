@@ -172,3 +172,4 @@ VP_SYS_VS_Systick.Signal=SYS_VS_Systick
 board=NUCLEO-F411RE
 boardIOC=true
 isbadioc=false
+isbadioc=false
