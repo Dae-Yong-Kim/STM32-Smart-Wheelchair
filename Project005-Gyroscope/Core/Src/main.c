@@ -154,7 +154,7 @@ void ReadAcc()
 	  printf("aX : %2.1f, aY : %2.1f, aZ : %2.1f\r\n", aX, aY, aZ);
 }
 
-double radTodeg = 180/3.141592;
+double radTodeg = 180/(3.141592);
 double angleX = 0.0;  // Roll
 double angleY = 0.0;  // Pitch
 //double angleZ = 0.0;
@@ -165,9 +165,27 @@ void ReadAcc_Angle()
 	// GYRO Data Read : 0x3B  XH-XL-YH-YL-ZH-ZL
 	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x3B, 1, acc, 6, 1000);
 
+<<<<<<< HEAD
 	short acc_x = (acc[0]<<8) + acc[1];
 	short acc_y = (acc[2]<<8) + acc[3];
 	short acc_z = (acc[4]<<8) + acc[5];
+=======
+	int acc_x = (acc[0]<<8) + acc[1];
+	int acc_y = (acc[2]<<8) + acc[3];
+	int acc_z = (acc[4]<<8) + acc[5];
+
+	//printf("Raw: X=%d, Y=%d, Z=%d\r\n", acc_x, acc_y, acc_z);
+
+//	// 2의 보수 처리 (부호 있는 16비트 값으로 변환)
+//	if(acc_x > 32767) acc_x -= 65536;
+//	if(acc_y > 32767) acc_y -= 65536;
+//	if(acc_z > 32767) acc_z -= 65536;
+
+	// -2 ~ 2
+//	double aX = acc_x / 16384;	// g Value
+//	double aY = acc_y / 16384;
+//	double aZ = acc_z / 16384;
+>>>>>>> a6195939c9a9120a718bfb07db3b4c0937d95090
 
 	// -16 ~ 16
 	double aX = (double)acc_x / 2048.0;	// g Value
