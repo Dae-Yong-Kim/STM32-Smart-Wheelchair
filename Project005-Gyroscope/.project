@@ -33,7 +33,7 @@
 		<link>
 			<name>Core/Src/myLib.c</name>
 			<type>1</type>
-			<locationURI>copy_PARENT1/MyLib/myLib.c</locationURI>
+			<locationURI>copy_PARENT/myLib/myLib.c</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>

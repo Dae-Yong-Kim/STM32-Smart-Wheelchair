@@ -63,7 +63,16 @@ static void MX_I2C1_Init(void);
 uint16_t W_addr = 0xAE;
 uint16_t R_addr = 0xAF;
 uint8_t data;
-
+int t = 1;	// Heart Rate interrupt 동작 확인
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	switch(GPIO_Pin)
+	{
+	case Sample_Pin :
+		printf("입력이 확인되었습니다. (%d 회) \r\n", t++);
+		break;
+	}
+}
 void Moduleset()
 {
     // Reset
@@ -83,6 +92,9 @@ void Moduleset()
     HAL_I2C_Mem_Write(&hi2c1, W_addr, 0x06, 1, &data, 1, 1000);
 
     // Sampling Set - Sampling Rate : 200Hz, Pulse Width : 411μs
+    // SpO2 ADC Range (00) : 2048
+    // SpO2 Sampling Rate (010) : 200 samples per second
+    // LED Pulse Width Control (11) : Pulse width 411, ADC Resolution 18 bit
     data = 0x0B;  // 0b00001011
     HAL_I2C_Mem_Write(&hi2c1, W_addr, 0x0A, 1, &data, 1, 1000);
     HAL_Delay(10);
@@ -347,6 +359,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Sample_Pin */
+  GPIO_InitStruct.Pin = Sample_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(Sample_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

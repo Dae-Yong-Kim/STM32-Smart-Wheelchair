@@ -78,7 +78,6 @@ void i2c_scan()
 }
 
 uint16_t Gyro_addr = 0xD0;
-//uint16_t Gyro_addr2 = 0xD1;
 uint8_t data;
 
 void ModuleSet()
@@ -157,7 +156,6 @@ void ReadAcc()
 double radTodeg = 180/(3.141592);
 double angleX = 0.0;  // Roll
 double angleY = 0.0;  // Pitch
-//double angleZ = 0.0;
 
 void ReadAcc_Angle()
 {
@@ -165,27 +163,9 @@ void ReadAcc_Angle()
 	// GYRO Data Read : 0x3B  XH-XL-YH-YL-ZH-ZL
 	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x3B, 1, acc, 6, 1000);
 
-<<<<<<< HEAD
 	short acc_x = (acc[0]<<8) + acc[1];
 	short acc_y = (acc[2]<<8) + acc[3];
 	short acc_z = (acc[4]<<8) + acc[5];
-=======
-	int acc_x = (acc[0]<<8) + acc[1];
-	int acc_y = (acc[2]<<8) + acc[3];
-	int acc_z = (acc[4]<<8) + acc[5];
-
-	//printf("Raw: X=%d, Y=%d, Z=%d\r\n", acc_x, acc_y, acc_z);
-
-//	// 2의 보수 처리 (부호 있는 16비트 값으로 변환)
-//	if(acc_x > 32767) acc_x -= 65536;
-//	if(acc_y > 32767) acc_y -= 65536;
-//	if(acc_z > 32767) acc_z -= 65536;
-
-	// -2 ~ 2
-//	double aX = acc_x / 16384;	// g Value
-//	double aY = acc_y / 16384;
-//	double aZ = acc_z / 16384;
->>>>>>> a6195939c9a9120a718bfb07db3b4c0937d95090
 
 	// -16 ~ 16
 	double aX = (double)acc_x / 2048.0;	// g Value
@@ -200,22 +180,67 @@ void ReadAcc_Angle()
 	printf("Roll (X): %3.1f, Pitch (Y): %3.1f\r\n", angleX, angleY);
 }
 
+double gyroZbias = 0.0; // Gyro Noise
+// Gyro Standard Noise Detect
+void CalibrateGyro()
+{
+    int sum = 0;
+    int samples = 10;
+
+    for(int i = 0; i < samples; i++)
+    {
+        HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x47, 1, gyro, 2, 1000);
+        short gZ = (gyro[0]<<8) + gyro[1];
+        //gZ = gZ / 131.0;
+        if((gZ > 0.05) || (gZ < -150))	sum += 0;
+        else							sum += gZ;
+        HAL_Delay(10);
+    }
+    double devide = (double)samples * 131;
+    gyroZbias = (double)sum / devide;
+    printf("gyroZbias : %7.3f\r\n", gyroZbias);
+    HAL_Delay(10);
+}
+
 unsigned char gy_z[2];
 double pre_gZ = 0, total_gZ = 0;
 int before = 0;
+double max_degree = 0;
 void Read_Z_Angle()
 {
+	CalibrateGyro();
 
 	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x47, 1, gy_z, 2, 1000);
 
 	short gyro_z = (gy_z[0]<<8) + gy_z[1];
 	double gZ = (double)gyro_z / 131.0;
 
+
+	gZ -= gyroZbias;
+
 	total_gZ += (gZ + pre_gZ) * (HAL_GetTick() - before) / 2000;
+
+	double gyroRate = gZ;
+	double gyroAngle = total_gZ;
+
+	printf("gyrorate: %7.3f, gyroAngle: %7.3f\r\n", gyroRate, gyroAngle);
+
+	// 상보필터
+	if (fabs(gyroRate) < 0.05) {
+		// 움직임이 거의 없을 때 드리프트 감소
+		total_gZ = pre_gZ * 0.999 + gyroAngle * 0.001;
+	} else {
+		// 움직임이 있을 때는 자이로 데이터에 더 의존
+		total_gZ = gyroAngle * 0.999 + pre_gZ * 0.001;
+	}
+
 	printf("gZ: %7.3f | total z degree: %7.3f\r\n", gZ, total_gZ);
 
 	pre_gZ = gZ;
 	before = HAL_GetTick();
+
+	if(fabs(max_degree) < fabs(total_gZ))	max_degree = total_gZ;
+	printf("max_degree : %7.3f\r\n", max_degree);
 }
 
 /* USER CODE END 0 */
@@ -253,7 +278,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	ProgramStart("Gyroscope Test");
 	i2c_scan();
-  	ModuleSet();
+	ModuleSet();
   /* USER CODE END 2 */
 
   /* Infinite loop */

@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "string.h"
+#include <stdio.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,6 +42,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -59,6 +63,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -67,7 +72,8 @@ static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN 0 */
 int mode = 0, pre_mode = 0;
 double FF_dist = 0, FR_dist = 0, FL_dist = 0;
-
+//0 : Stop ,1 : Fast Front ,2 : Rear ,3 : Quick Left, 4 : Slow Left
+//5 : Quick Light ,6 : Slow Light
 void Motor_Mode(int x)
 {
 	switch(x) {
@@ -103,7 +109,7 @@ void Motor_Mode(int x)
 			  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
 			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
 			  break;
-		  case 4:		// Soft Left
+		  case 4:		// Slow Left
 			  htim1.Instance->CCR1 = 100;		//ENA
 			  htim1.Instance->CCR3 = 300;		//ENB
 
@@ -133,22 +139,10 @@ void Motor_Mode(int x)
 	}
 }
 
-void Motor_Backward()
-{
-}
-
+// GPIO Interrupt
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch(GPIO_Pin) {
-  case B1_Pin:
-	  mode++;
-	  if(mode == 8)	mode = 0;
-//	  if(mode != 5)	{
-//		  mode++;	// 1: Front, 2: Rear, 3: Left, 4: Right, 0: Stop, 5: Stop (Too Close)
-//		  if(mode == 5)	mode = 0;
-//		  pre_mode = mode;
-//	  }
-	  break;
   case FFecho_Pin:
 	  if(HAL_GPIO_ReadPin(FFecho_GPIO_Port, FFecho_Pin)) {
 		  htim2.Instance->CNT = 0;
@@ -190,6 +184,7 @@ char buf1[BUF_SIZE], buf2[BUF_SIZE]; // DMA Buffer
 char dum1, dum2;
 int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0, temp = 0;
 
+int finish = 0;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
    if(huart == &huart1)
@@ -205,11 +200,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
             //printf("%s", comp_buf);
             if(!strncmp(comp_buf, "9B0C60", 6)) {
               printf("\r\nI found it%d\r\n\r\n", temp++);
-              mode = 0;
+              finish = 1;
               pre_mode = mode;
            }
          }
-
 
          tail1 = 0;
       }
@@ -231,6 +225,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
       HAL_UART_Receive_IT(&huart2, &dum2, 1);
    }
 }
+
+double* max_Degree = 0;
 
 /* USER CODE END 0 */
 
@@ -267,6 +263,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM1_Init();
   MX_USART1_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   ProgramStart("Mortor test!");
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);	// Motor PWM1
@@ -279,12 +276,17 @@ int main(void)
   UART_Start_Receive_IT(&huart1, &dum1, 1);
   UART_Start_Receive_IT(&huart2, &dum2, 1);
 
+  i2c_Gyro_init(&hi2c1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  Read_Z_Angle();
+//	  Max_de(&max_Degree);
+//	  printf("%3.1f\r\n", *max_Degree);
 	  printf("FF_dist : %f, FR_dist : %f, FL_dist : %f \r\n", FF_dist, FR_dist, FL_dist);
 	  if(FF_dist == -1 || FR_dist == -1 || FL_dist == -1) {}
 	  else if(FF_dist < 400 && FR_dist < 400 && FL_dist < 400) {	// MoveBackWard
@@ -327,8 +329,6 @@ int main(void)
 	  else{
 		  Motor_Mode(1);		// Front
 	  }
-
-	  //Motor_Mode();
 
 	  HAL_UART_Transmit(&huart1, "AT+INQ\r\n", 8, 10);
 	  HAL_Delay(100);
@@ -384,6 +384,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
