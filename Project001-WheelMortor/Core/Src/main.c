@@ -182,29 +182,30 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 #define BUF_SIZE 100
 char buf1[BUF_SIZE], buf2[BUF_SIZE]; // DMA Buffer
 char dum1, dum2;
-int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0, temp = 0;
+int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0, temp1 = 0, temp2 = 0, mode = 0; // mode 0: AT command, 1: regularly send AT+INQ and detect entered slave address
+int sn; //slave number
+char* slave_addr[5] = {"8E4591", "15DA51", "37826F", "A7EF18", "9B0C60"}; // slave address
 
-int finish = 0;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
    if(huart == &huart1)
    {
       buf1[tail1++] = dum1;
-      //HAL_UART_Transmit(&huart2, &dum1/*== buf1+t1-1*/, 1, 10);      // putty print
+      if(!mode) {
+    	  HAL_UART_Transmit(&huart2, &dum1/*== buf1+t1-1*/, 1, 10);      // putty print
+      }
       if(dum1 == '\r')
       {
-         //CheckCMD(buf1);
-         char comp_buf[BUF_SIZE];
-         if(tail1 > 15) {
-            sprintf(comp_buf, "%s\n\0", &buf1[tail1 - 7]);
-            //printf("%s", comp_buf);
-            if(!strncmp(comp_buf, "9B0C60", 6)) {
-              printf("\r\nI found it%d\r\n\r\n", temp++);
-              finish = 1;
-              pre_mode = mode;
-           }
-         }
-
+    	  if(mode){
+			  char comp_buf[BUF_SIZE];
+			  if(tail1 > 15) {
+				  sprintf(comp_buf, "%s\n\0", &buf1[tail1 - 7]);
+				  if(!strncmp(comp_buf, slave_addr[sn], 6)) {
+					  /* Add to Mode select */
+					  printf("I found it%d\r\n\r\n", temp2++);
+				  }
+			  }
+    	  }
          tail1 = 0;
       }
       HAL_UART_Receive_IT(&huart1, &dum1, 1);         // interrupt chain
@@ -216,17 +217,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
       if(dum2 == '\r')  // CR : 0x0d
       {
          HAL_UART_Transmit(&huart2, "\n", 1, 10); // terminal echo
-
          buf2[tail2++] = '\n'; // == HAL_UART_Transmit(&huart1, "\n", 1, 10);
          HAL_UART_Transmit(&huart1, buf2, tail2, 10);   // AT Command
-//         HAL_UART_Transmit(&huart1, "\n", 1, 10);
          tail2 = 0;
       }
       HAL_UART_Receive_IT(&huart2, &dum2, 1);
    }
 }
 
-double* max_Degree = 0;
+// Gyro_MAX Degree
+double max_Degree;
 
 /* USER CODE END 0 */
 
@@ -284,9 +284,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  Read_Z_Angle();
-//	  Max_de(&max_Degree);
-//	  printf("%3.1f\r\n", *max_Degree);
+	  Read_Z_Angle(&max_Degree);
+	  printf("%3.1f \r\n", max_Degree);
 	  printf("FF_dist : %f, FR_dist : %f, FL_dist : %f \r\n", FF_dist, FR_dist, FL_dist);
 	  if(FF_dist == -1 || FR_dist == -1 || FL_dist == -1) {}
 	  else if(FF_dist < 400 && FR_dist < 400 && FL_dist < 400) {	// MoveBackWard

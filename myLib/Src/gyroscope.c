@@ -122,7 +122,7 @@ void CalibrateGyro()
 
     for(int i = 0; i < samples; i++)
     {
-        HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x47, 1, gyro, 2, 1000);
+        HAL_I2C_Mem_Read(hi2c, Gyro_addr, 0x47, 1, gyro, 2, 1000);
         short gZ = (gyro[0]<<8) + gyro[1];
         //gZ = gZ / 131.0;
         if((gZ > 0.05) || (gZ < -150))	sum += 0;
@@ -139,11 +139,11 @@ unsigned char gy_z[2];
 double pre_gZ = 0, total_gZ = 0;
 int before = 0;
 double max_degree = 0;
-void Read_Z_Angle()
+void Read_Z_Angle(double* max)
 {
 	CalibrateGyro();
 
-	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x47, 1, gy_z, 2, 1000);
+	HAL_I2C_Mem_Read(hi2c, Gyro_addr, 0x47, 1, gy_z, 2, 1000);
 
 	short gyro_z = (gy_z[0]<<8) + gy_z[1];
 	double gZ = (double)gyro_z / 131.0;
@@ -174,8 +174,6 @@ void Read_Z_Angle()
 
 	if(fabs(max_degree) < fabs(total_gZ))	max_degree = total_gZ;
 	printf("max_degree : %7.3f\r\n", max_degree);
-}
-void Max_de(double* max)
-{
-	max = &max_degree;
+
+	*max = max_degree;
 }
