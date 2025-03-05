@@ -22,6 +22,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <math.h>
+//#include "stm32fxxx_hal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -81,7 +85,7 @@ void Moduleset()
     HAL_Delay(100);
 
     // FIFO Set
-    data = 0x5F;  // 4 Sample Average, RollOver Enable, Full Data Interrupt
+    data = 0xD0;  // 4 Sample Average: 32, RollOver Enable, Full Data Interrupt
     HAL_I2C_Mem_Write(&hi2c1, W_addr, 0x08, 1, &data, 1, 1000);
     HAL_Delay(10);
 
@@ -100,7 +104,7 @@ void Moduleset()
     HAL_Delay(10);
 
     // LED Current set
-    data = 0xFF;  // MAX 50mA
+    data = 0x10;  // MAX 50mA (0xFF) // 0x20: 6.4mA
     HAL_I2C_Mem_Write(&hi2c1, W_addr, 0x0C, 1, &data, 1, 1000);
     HAL_I2C_Mem_Write(&hi2c1, W_addr, 0x0D, 1, &data, 1, 1000);
     HAL_Delay(10);
@@ -139,25 +143,27 @@ void MAX30102_ReadHeartRate()
         redData = ((uint32_t)dataBuffer[0] << 16 | (uint32_t)dataBuffer[1] << 8 | dataBuffer[2]) & 0x03FFFF;
         irData = ((uint32_t)dataBuffer[3] << 16 | (uint32_t)dataBuffer[4] << 8 | dataBuffer[5]) & 0x03FFFF;
 
-        printf("\r\nHeart Rate : %d\r\n", redData);
-        printf("\r\SpO2 Rate : %d\r\n", redData);
+        printf("Heart Rate : %d\r\n", redData);
+        //printf("\r\SpO2 Rate : %d\r\n", redData);
     }
 }
 
+
+
 void i2c_scan()
 {
-	for(int addr=0; addr<256; addr++)
-	{
-		if(HAL_I2C_IsDeviceReady(&hi2c1, addr, 1, 10 /* ms*/) == HAL_OK)
-		{
-			printf("  %02x ", addr);
-		}
-		else
-		{
-			printf("  .  ");
-		}
-		if((addr % 16) == 15)	printf("\r\n");
-	}
+   for(int addr=0; addr<256; addr++)
+   {
+      if(HAL_I2C_IsDeviceReady(&hi2c1, addr, 1, 10 /* ms*/) == HAL_OK)
+      {
+         printf("  %02x ", addr);
+      }
+      else
+      {
+         printf("  .  ");
+      }
+      if((addr % 16) == 15)   printf("\r\n");
+   }
 }
 
 /* USER CODE END 0 */
@@ -196,7 +202,10 @@ int main(void)
 
   ProgramStart("Pulse Oximeter Test");
   i2c_scan();
-  Moduleset();
+  //Moduleset();
+
+
+  max30102_init();
 
 
   /* USER CODE END 2 */
@@ -205,10 +214,16 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  MAX30102_ReadHeartRate();
-	  HAL_Delay(1000);
-    /* USER CODE END WHILE */
+      /*MAX30102_ReadHeartRate();
+      HAL_Delay(20);*/
+	  max30102_cal();
 
+	          uint8_t spo2 = max30102_getSpO2();
+	          uint8_t heartRate = max30102_getHeartRate();
+
+	          printf("Heart Rate: %d BPM, SpO2: %d%%\r\n", heartRate, spo2);
+
+	          HAL_Delay(1000); // 1초마다 데이터 전송
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
