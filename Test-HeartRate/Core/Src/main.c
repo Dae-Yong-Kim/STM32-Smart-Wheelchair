@@ -43,6 +43,10 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
+SPI_HandleTypeDef hspi1;
+
+TIM_HandleTypeDef htim3;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -55,6 +59,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_SPI1_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -69,20 +75,20 @@ uint32_t last_ir_value = 0;
 uint32_t pulse_count = 0;
 uint32_t last_time = 0;
 
-uint32_t heartRateSum = 0; // ì‹¬ë°•ìˆ˜ í•©ê³„
-uint16_t sampleCount = 0; // ìƒ˜í”Œ ê°œìˆ˜
-uint32_t startTime = 0; // ì¸¡ì • ì‹œì‘ ì‹œê°„
-uint32_t lastPrintTime = 0; // ë§ˆì§€ë§‰ ì¶œë ¥ ì‹œê°„
+uint32_t heartRateSum = 0; // ?‹¬ë°•ìˆ˜ ?•©ê³?
+uint16_t sampleCount = 0; // ?ƒ˜?”Œ ê°œìˆ˜
+uint32_t startTime = 0; // ì¸¡ì • ?‹œ?‘ ?‹œê°?
+uint32_t lastPrintTime = 0; // ë§ˆì?ë§? ì¶œë ¥ ?‹œê°?
 
 void send_uart(const char *str) {
     HAL_UART_Transmit(&huart2, (uint8_t *)str, strlen(str), 100);
 }
 
 void setup() {
-    HAL_UART_Init(&huart2);                  // UART ì´ˆê¸°í™”
-    MAX30102_Init();                          // MAX30102 ì„¼ì„œ ì´ˆê¸°í™”
-    startTime = HAL_GetTick();                // ì¸¡ì • ì‹œì‘ ì‹œê°„ ì„¤ì •
-    lastPrintTime = startTime;                // ì²« ì¶œë ¥ ì‹œê°„ ì´ˆê¸°í™”
+    HAL_UART_Init(&huart2);                  // UART ì´ˆê¸°?™”
+    MAX30102_Init();                          // MAX30102 ?„¼?„œ ì´ˆê¸°?™”
+    startTime = HAL_GetTick();                // ì¸¡ì • ?‹œ?‘ ?‹œê°? ?„¤? •
+    lastPrintTime = startTime;                // ì²? ì¶œë ¥ ?‹œê°? ì´ˆê¸°?™”
 }
 
 
@@ -91,24 +97,24 @@ void loop() {
     uint32_t ir_sample = 0;
     uint32_t red_sample = 0;
     printf("Start loop() ... \r\n");
-    if (currentTime - startTime < 60000) {  // ì²« 1ë¶„ ë™ì•ˆ ì‹¤í–‰
-        if (currentTime - lastPrintTime >= 4000) {  // 4ì´ˆë§ˆë‹¤ ì¶œë ¥
-            if (MAX30102_Check()) {  // ë°ì´í„° ì¤€ë¹„ í™•ì¸
-                // FIFOì—ì„œ ë°ì´í„° ì½ê¸°
+    if (currentTime - startTime < 60000) {  // ì²? 1ë¶? ?™?•ˆ ?‹¤?–‰
+        if (currentTime - lastPrintTime >= 4000) {  // 4ì´ˆë§ˆ?‹¤ ì¶œë ¥
+            if (MAX30102_Check()) {  // ?°?´?„° ì¤?ë¹? ?™•?¸
+                // FIFO?—?„œ ?°?´?„° ?½ê¸?
             	 printf("Check 1 \r\n");
                 if (MAX30102_ReadFIFO(&red_sample, &ir_sample)) {
-                    // ì‹¤ì‹œê°„ ì‹¬ë°•ìˆ˜ ê³„ì‚°
+                    // ?‹¤?‹œê°? ?‹¬ë°•ìˆ˜ ê³„ì‚°
                     calculate_heart_rate(ir_sample);
 
-                    heartRateSum += heart_rate;   // ì‹¬ë°•ìˆ˜ í•©ê³„
-                    sampleCount++;              // ìƒ˜í”Œ ê°œìˆ˜ ì¦ê°€
+                    heartRateSum += heart_rate;   // ?‹¬ë°•ìˆ˜ ?•©ê³?
+                    sampleCount++;              // ?ƒ˜?”Œ ê°œìˆ˜ ì¦ê?
 
                     char buffer[100];
                     sprintf(buffer, "IR: %lu, RED: %lu, Heart Rate: %lu BPM\r\n",
                            ir_sample, red_sample, heart_rate);
-                    send_uart(buffer);  // UARTë¡œ ë°ì´í„° ì¶œë ¥
+                    send_uart(buffer);  // UARTë¡? ?°?´?„° ì¶œë ¥
 
-                    lastPrintTime = currentTime;  // ë§ˆì§€ë§‰ ì¶œë ¥ ì‹œê°„ ì—…ë°ì´íŠ¸
+                    lastPrintTime = currentTime;  // ë§ˆì?ë§? ì¶œë ¥ ?‹œê°? ?—…?°?´?Š¸
                 }
             }
             else {
@@ -116,19 +122,19 @@ void loop() {
                 HAL_Delay(1000);
             }
         }
-    } else {  // 1ë¶„ì´ ì§€ë‚œ í›„ í‰ê·  ì‹¬ë°•ìˆ˜ ì¶œë ¥
+    } else {  // 1ë¶„ì´ ì§??‚œ ?›„ ?‰ê·? ?‹¬ë°•ìˆ˜ ì¶œë ¥
         if (sampleCount > 0) {
-            int avgHeartRate = heartRateSum / sampleCount;  // í‰ê·  ì‹¬ë°•ìˆ˜ ê³„ì‚°
+            int avgHeartRate = heartRateSum / sampleCount;  // ?‰ê·? ?‹¬ë°•ìˆ˜ ê³„ì‚°
             heartRateSum = 0;
             sampleCount = 0;
-            startTime = currentTime;  // ìƒˆë¡œìš´ 1ë¶„ ì¸¡ì • ì‹œì‘
+            startTime = currentTime;  // ?ƒˆë¡œìš´ 1ë¶? ì¸¡ì • ?‹œ?‘
             lastPrintTime = startTime;
 
             char buffer[50];
             sprintf(buffer, "\nAverage Heart Rate: %d BPM\r\n", avgHeartRate);
-            send_uart(buffer);  // í‰ê·  ì‹¬ë°•ìˆ˜ ì¶œë ¥
+            send_uart(buffer);  // ?‰ê·? ?‹¬ë°•ìˆ˜ ì¶œë ¥
         }
-        HAL_Delay(5000);  // 5ì´ˆ ë™ì•ˆ ëŒ€ê¸°
+        HAL_Delay(5000);  // 5ì´? ?™?•ˆ ??ê¸?
     }
 }
 
@@ -142,23 +148,23 @@ void calculate_heart_rate(uint32_t ir_sample) {
 
     samples_since_last_beat++;
 
-    // ì ì‘í˜• ì„ê³„ê°’ ê³„ì‚° (ì´ˆê¸°ê°’ ì„¤ì •)
+    // ? ?‘?˜• ?„ê³„ê°’ ê³„ì‚° (ì´ˆê¸°ê°? ?„¤? •)
     if (beat_threshold == 0) {
         beat_threshold = ir_sample;
     }
 
-    // ìƒˆë¡œìš´ ì„ê³„ê°’ ê³„ì‚° (ì´ë™ í‰ê· )
+    // ?ƒˆë¡œìš´ ?„ê³„ê°’ ê³„ì‚° (?´?™ ?‰ê·?)
     beat_threshold = (beat_threshold * 7 + ir_sample) / 8;
 
-    // ì‹¬ë°•ìˆ˜ ê²€ì¶œ ë¡œì§
+    // ?‹¬ë°•ìˆ˜ ê²?ì¶? ë¡œì§
     if (ir_sample > beat_prev_sample && ir_sample > beat_threshold && beat_detected == 0) {
-        // ì‹ í˜¸ì˜ í”¼í¬ ê²€ì¶œë¨
-        if (samples_since_last_beat > 10) {  // ìµœì†Œ ê°„ê²© ì„¤ì • (ë…¸ì´ì¦ˆ ë°©ì§€)
+        // ?‹ ?˜¸?˜ ?”¼?¬ ê²?ì¶œë¨
+        if (samples_since_last_beat > 10) {  // ìµœì†Œ ê°„ê²© ?„¤? • (?…¸?´ì¦? ë°©ì?)
             beat_count++;
             samples_since_last_beat = 0;
             beat_detected = 1;
 
-            // ì‹¬ë°•ìˆ˜ ê³„ì‚° (1ì´ˆë§ˆë‹¤)
+            // ?‹¬ë°•ìˆ˜ ê³„ì‚° (1ì´ˆë§ˆ?‹¤)
             uint32_t current_time = HAL_GetTick();
             if (current_time - beat_last_time > 1000) {
                 heart_rate = (beat_count * 60000) / (current_time - beat_last_time);
@@ -167,7 +173,7 @@ void calculate_heart_rate(uint32_t ir_sample) {
             }
         }
     } else if (ir_sample < beat_threshold) {
-        // ì‹ í˜¸ê°€ ì„ê³„ê°’ ì•„ë˜ë¡œ ë–¨ì–´ì§€ë©´ ë‹¤ìŒ ë¹„íŠ¸ ê²€ì¶œ ì¤€ë¹„
+        // ?‹ ?˜¸ê°? ?„ê³„ê°’ ?•„?˜ë¡? ?–¨?–´ì§?ë©? ?‹¤?Œ ë¹„íŠ¸ ê²?ì¶? ì¤?ë¹?
         beat_detected = 0;
     }
 
@@ -176,10 +182,10 @@ void calculate_heart_rate(uint32_t ir_sample) {
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == GPIO_PIN_9)  // MAX30102 ì¸í„°ëŸ½íŠ¸ í•€
+    if (GPIO_Pin == GPIO_PIN_9)  // MAX30102 ?¸?„°?Ÿ½?Š¸ ??
     {
-        // ì¸í„°ëŸ½íŠ¸ ë°œìƒ - ë°ì´í„° ì¤€ë¹„ë¨
-        // ì—¬ê¸°ì„œëŠ” íŠ¹ë³„í•œ ì²˜ë¦¬ë¥¼ í•˜ì§€ ì•Šê³  main loopì—ì„œ MAX30102_Check()ë¡œ í™•ì¸
+        // ?¸?„°?Ÿ½?Š¸ ë°œìƒ - ?°?´?„° ì¤?ë¹„ë¨
+        // ?—¬ê¸°ì„œ?Š” ?Š¹ë³„í•œ ì²˜ë¦¬ë¥? ?•˜ì§? ?•Šê³? main loop?—?„œ MAX30102_Check()ë¡? ?™•?¸
     }
 }
 
@@ -215,6 +221,8 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
+  MX_SPI1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   setup();
   ProgramStart("Heart Rate Please..");
@@ -319,6 +327,103 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 640-1;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 1000-1;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -369,7 +474,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, SD_CS_Pin|TP_CS_Pin|LCD_CS_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, LCD_RST_Pin|LCD_DC_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -377,18 +485,25 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : SD_CS_Pin TP_CS_Pin LCD_CS_Pin */
+  GPIO_InitStruct.Pin = SD_CS_Pin|TP_CS_Pin|LCD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PA9 */
-  GPIO_InitStruct.Pin = GPIO_PIN_9;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING; // ì´ë²¤íŠ¸ ëŒ€ì‹  ì¸í„°ëŸ½íŠ¸ ëª¨ë“œë¡œ ë³€ê²½
-  GPIO_InitStruct.Pull = GPIO_PULLUP; // í’€ì—… ì €í•­ ì¶”ê°€
+  /*Configure GPIO pins : LCD_RST_Pin LCD_DC_Pin */
+  GPIO_InitStruct.Pin = LCD_RST_Pin|LCD_DC_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : TP_BUSY_Pin TP_IRQ_Pin */
+  GPIO_InitStruct.Pin = TP_BUSY_Pin|TP_IRQ_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
