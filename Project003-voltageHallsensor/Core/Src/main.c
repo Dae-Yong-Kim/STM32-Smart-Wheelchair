@@ -66,10 +66,8 @@ static void MX_TIM3_Init(void);
 /* USER CODE BEGIN 0 */
 unsigned int val;			 // ADC 측정값
 unsigned int volt[99];		 // ADC 측정값을 100개 저장하는 배열
-//unsigned int avolt = 0;	 // volt 평균값
 float voltage = 0.0;         // 현재 전압값을 저장할 변수
-float voltage_L = 12.0;		 // 전압값 감소 확인
-//float voltage_F = 0.0;		 // 최종 전압값
+float voltage_L = 12.4;		 // 전압값 감소 확인
 int t = 1;	// hall sensor 입력 확인
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
@@ -79,6 +77,30 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		printf("입력이 확인되었습니다. (%d 회) \r\n", t++);
 		break;
 	}
+}
+
+#define min_voltage 9.00
+#define max_voltage 12.20
+#define voltage_param (max_voltage - min_voltage)
+void Voltage_state()
+{
+	unsigned int avolt = 0;	     // volt 평균값
+	for(int i = 0; i < 100; i++)
+	{
+	  volt[i] = val;
+	  avolt += volt[i];
+	  //printf("Current ADC Value(val) : %d \r\n", volt[i]);
+	}
+	voltage = avolt * 5 * 3.3 / 409500; // 평균 (avolt / 100) * Resolution (3.3 / 3095) * 분배비 5
+	if(voltage < voltage_L)
+	{
+	  voltage_L = voltage;
+	  printf("Average ADC Volt : %.3f \r\n", voltage_L);
+	  float curr_volt = (1 - ((max_voltage - voltage_L) / voltage_param)) * 100;
+	  printf("배터리 충전 상태 : %.2f \r\n", curr_volt);
+	}
+	float curr_volt = (1 - ((max_voltage - voltage_L) / voltage_param)) * 100;
+	printf("배터리 충전 상태 : %.2f \r\n", curr_volt);
 }
 /* USER CODE END 0 */
 
@@ -113,7 +135,9 @@ int main(void)
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
  HAL_ADC_Start_DMA(&hadc1, &val, 1);
+ HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
  HAL_TIM_Base_Start(&htim3);
+ //HAL_TIM_PWM_Start_DMA(&htim3, TIM_CHANNEL_3, &val, 1);
  ProgramStart("Voltage Sensor");
   /* USER CODE END 2 */
 
@@ -121,21 +145,22 @@ int main(void)
   /* USER CODE BEGIN WHILE */
  while (1)
  {
-	  unsigned int avolt = 0;	     // volt 평균값
-	  for(int i = 0; i < 100; i++)
-	  {
-		  volt[i] = val;
-		  avolt += volt[i];
-		  //printf("Current ADC Value(val) : %d \r\n", volt[i]);
-	  }
-	  voltage = avolt * 5 * 3.3 / 409500; // 평균 (avolt / 100) * Resolution (3.3 / 3095) * 분배비 5
-	  if(voltage < voltage_L)
-	  {
-		  voltage_L = voltage;
-		  printf("Average ADC Volt : %.3f \r\n", voltage_L);
-	  }
+//	  unsigned int avolt = 0;	     // volt 평균값
+//	  for(int i = 0; i < 100; i++)
+//	  {
+//		  volt[i] = val;
+//		  avolt += volt[i];
+//		  //printf("Current ADC Value(val) : %d \r\n", volt[i]);
+//	  }
+//	  voltage = avolt * 5 * 3.3 / 409500; // 평균 (avolt / 100) * Resolution (3.3 / 3095) * 분배비 5
+//	  if(voltage < voltage_L)
+//	  {
+//		  voltage_L = voltage;
+//		  printf("Average ADC Volt : %.3f \r\n", voltage_L);
+//	  }
 	  //printf("Average ADC Volt : %.3f \r\n", voltage);
 	  //printf("Average ADC Volt : %.3f \r\n", voltage_F);
+	  Voltage_state();
 	  HAL_Delay(500);
     /* USER CODE END WHILE */
 
@@ -257,6 +282,7 @@ static void MX_TIM3_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM3_Init 1 */
 
@@ -276,15 +302,28 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 5;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
