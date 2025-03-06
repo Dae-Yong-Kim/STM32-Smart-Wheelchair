@@ -122,15 +122,19 @@ void ModuleSet()
 unsigned char gyro[6];
 void ReadGyro()
 {
-	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x43, 1, gyro, 6, 1000);
+   // current Time Measure
+   //uint32_t currentTime = HAL_GetTick();
 
-	short gyro_x = (gyro[0]<<8) + gyro[1];
-	short gyro_y = (gyro[2]<<8) + gyro[3];
-	short gyro_z = (gyro[4]<<8) + gyro[5];
+   // GYRO Data Read : 0x43  XH-XL-YH-YL-ZH-ZL
+   HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x43, 1, gyro, 6, 1000);
 
-	double gX = (double)gyro_x / 131.0;	// degree per second Value
-	double gY = (double)gyro_y / 131.0;
-	double gZ = (double)gyro_z / 131.0;
+   short gyro_x = (gyro[0]<<8) + gyro[1];
+   short gyro_y = (gyro[2]<<8) + gyro[3];
+   short gyro_z = (gyro[4]<<8) + gyro[5];
+
+   double gX = (double)gyro_x / 131.0;   // degree per second Value
+   double gY = (double)gyro_y / 131.0;
+   double gZ = (double)gyro_z / 131.0;
 
   printf("gyroX : %2.1f, gyroY : %2.1f, gyroZ : %2.1f\r\n", gX, gY, gZ);
 }
@@ -139,22 +143,27 @@ unsigned char acc[6];
 void ReadAcc()
 {
 
-	// GYRO Data Read : 0x3B  XH-XL-YH-YL-ZH-ZL
-	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x3B, 1, acc, 6, 1000);
+   // GYRO Data Read : 0x3B  XH-XL-YH-YL-ZH-ZL
+   HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x3B, 1, acc, 6, 1000);
 
-	short acc_x = (acc[0]<<8) + acc[1];
-	short acc_y = (acc[2]<<8) + acc[3];
-	short acc_z = (acc[4]<<8) + acc[5];
+   short acc_x = (acc[0]<<8) + acc[1];
+   short acc_y = (acc[2]<<8) + acc[3];
+   short acc_z = (acc[4]<<8) + acc[5];
 
-	// -16 ~ 16
-	double aX = (double)acc_x / 2048.0;	// g Value
-	double aY = (double)acc_y / 2048.0;
-	double aZ = (double)acc_z / 2048.0;
+   // -2 ~ 2
+   //   double aX = acc_x / 16384;   // g Value
+   //   double aY = acc_y / 16384;
+   //   double aZ = acc_z / 16384;
 
-	  printf("aX : %2.1f, aY : %2.1f, aZ : %2.1f\r\n", aX, aY, aZ);
+   // -16 ~ 16
+   double aX = (double)acc_x / 2048.0;   // g Value
+   double aY = (double)acc_y / 2048.0;
+   double aZ = (double)acc_z / 2048.0;
+
+     printf("aX : %2.1f, aY : %2.1f, aZ : %2.1f\r\n", aX, aY, aZ);
 }
 
-double radTodeg = 180/(3.141592);
+double radTodeg = 180/3.141592;
 double angleX = 0.0;  // Roll
 double angleY = 0.0;  // Pitch
 //double angleZ = 0.0;
@@ -162,42 +171,49 @@ double angleY = 0.0;  // Pitch
 void ReadAcc_Angle()
 {
 
-	// GYRO Data Read : 0x3B  XH-XL-YH-YL-ZH-ZL
-	HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x3B, 1, acc, 6, 1000);
+   // GYRO Data Read : 0x3B  XH-XL-YH-YL-ZH-ZL
+   HAL_I2C_Mem_Read(&hi2c1, Gyro_addr, 0x3B, 1, acc, 6, 1000);
 
-<<<<<<< HEAD
-	short acc_x = (acc[0]<<8) + acc[1];
-	short acc_y = (acc[2]<<8) + acc[3];
-	short acc_z = (acc[4]<<8) + acc[5];
-=======
-	int acc_x = (acc[0]<<8) + acc[1];
-	int acc_y = (acc[2]<<8) + acc[3];
-	int acc_z = (acc[4]<<8) + acc[5];
+   short acc_x = (acc[0]<<8) + acc[1];
+   short acc_y = (acc[2]<<8) + acc[3];
+   short acc_z = (acc[4]<<8) + acc[5];
 
-	//printf("Raw: X=%d, Y=%d, Z=%d\r\n", acc_x, acc_y, acc_z);
+   printf("Raw: X=%d, Y=%d, Z=%d\r\n", acc_x, acc_y, acc_z);
 
-//	// 2의 보수 처리 (부호 있는 16비트 값으로 변환)
-//	if(acc_x > 32767) acc_x -= 65536;
-//	if(acc_y > 32767) acc_y -= 65536;
-//	if(acc_z > 32767) acc_z -= 65536;
+   // 2?   보수 처리 ( ??   ?  ?   16비트 값으 ?  ??  )
+   /*if(acc_x > 32767) acc_x -= 65536;
+   if(acc_y > 32767) acc_y -= 65536;
+   if(acc_z > 32767) acc_z -= 65536;*/
 
-	// -2 ~ 2
-//	double aX = acc_x / 16384;	// g Value
-//	double aY = acc_y / 16384;
-//	double aZ = acc_z / 16384;
->>>>>>> a6195939c9a9120a718bfb07db3b4c0937d95090
+   // -2 ~ 2
+//   double aX = acc_x / 16384;   // g Value
+//   double aY = acc_y / 16384;
+//   double aZ = acc_z / 16384;
 
-	// -16 ~ 16
-	double aX = (double)acc_x / 2048.0;	// g Value
-	double aY = (double)acc_y / 2048.0;
-	double aZ = (double)acc_z / 2048.0;
+   // -16 ~ 16
+   double aX = (double)acc_x / 2048.0;   // g Value
+   double aY = (double)acc_y / 2048.0;
+   double aZ = (double)acc_z / 2048.0;
 
-	// Roll
-	angleX = atan2(aY, sqrt(pow(aX, 2) + pow(aZ, 2))) * radTodeg;
-	// Pitch
-	angleY = atan2(-aX, sqrt(pow(aY, 2) + pow(aZ, 2))) * radTodeg;
+   printf("g: X=%.3f, Y=%.3f, Z=%.3f\r\n", aX, aY, aZ);
 
-	printf("Roll (X): %3.1f, Pitch (Y): %3.1f\r\n", angleX, angleY);
+   // Roll
+   angleX = atan2(aY, sqrt(pow(aX, 2) + pow(aZ, 2))) * radTodeg;
+   // Pitch
+   angleY = atan2(-aX, sqrt(pow(aY, 2) + pow(aZ, 2))) * radTodeg;
+
+   printf("Roll (X): %3.1f, Pitch (Y): %3.1f\r\n", angleX, angleY);
+
+//   double accel_yz = sqrt(pow(aY,2)+pow(aZ,2));
+//   angleY = atan(-aX/accel_yz)*radTodeg;
+//
+//   double accel_xz = sqrt(pow(aX,2)+pow(aZ,2));
+//   angleX = atan(aY/accel_xz)*radTodeg;
+//
+//   double accel_xy = sqrt(pow(aX,2)+pow(aY,2));
+//   angleZ = atan(accel_xy/aZ)*radTodeg;
+
+  //printf("angleX : %2.1f, angleY : %2.1f, angleZ : %2.1f\r\n", angleX, angleY, angleZ);
 }
 
 unsigned char gy_z[2];
