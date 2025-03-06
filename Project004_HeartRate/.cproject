@@ -176,8 +176,11 @@
 		</scannerConfigBuildInfo>
 	</storageModule>
 <<<<<<< HEAD
+<<<<<<< HEAD
 	<storageModule moduleId="refreshScope"/>
 =======
+=======
+>>>>>>> je
 	<storageModule moduleId="refreshScope" versionNumber="2">
 		<configuration configurationName="Debug">
 			<resource resourceType="PROJECT" workspacePath="/Project004_HeartRate"/>
@@ -186,5 +189,8 @@
 			<resource resourceType="PROJECT" workspacePath="/Project004_HeartRate"/>
 		</configuration>
 	</storageModule>
+<<<<<<< HEAD
 >>>>>>> bfd9a88b43984f20a85e58ac62c910c9279d0b24
+=======
+>>>>>>> je
 </cproject>
