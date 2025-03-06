@@ -148,7 +148,8 @@ void Motor_Mode(int x)
 }
 
 // GPIO Interrupt
-int t = 1;	// hall sensor 입력 확인
+int t = 1;	// hall sensor Status
+unsigned char sit = 0;  // Force Sensor Status
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch(GPIO_Pin) {
@@ -187,6 +188,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   	  break;
 	case Hall_Pin :
 		printf("입력이 확인되었습니다. (%d 회) \r\n", t++);
+		break;
+	case Force_Pin :
+		sit = ~sit;
+		if(sit)	printf("착석이 확인되었습니다. \r\n");
+		else	printf("착석 부탁드립니다. \r\n");
 		break;
     }
 }
@@ -882,6 +888,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(Hall_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Force_Pin */
+  GPIO_InitStruct.Pin = Force_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(Force_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : FFecho_Pin */
   GPIO_InitStruct.Pin = FFecho_Pin;
