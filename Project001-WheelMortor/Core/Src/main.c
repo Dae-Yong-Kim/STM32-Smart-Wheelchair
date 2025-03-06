@@ -240,7 +240,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 // Voltage Sensor
 unsigned int val;			 // ADC 측정값
-unsigned int volt[99];		 // ADC 측정값을 100개 저장하는 배열
+unsigned int volt[100];		 // ADC 측정값을 100개 저장하는 배열
+unsigned int voltage_i = 0;
 float voltage = 0.0;         // 현재 전압값을 저장할 변수
 float voltage_L = 12.4;		 // 전압값 감소 확인
 #define min_voltage 9.00
@@ -249,9 +250,14 @@ float voltage_L = 12.4;		 // 전압값 감소 확인
 void Voltage_state()
 {
 	unsigned int avolt = 0;	     // volt 평균값
+
+	volt[voltage_i++] = val;
+	if(voltage_i >= 100) {
+		voltage_i = 0;
+	}
 	for(int i = 0; i < 100; i++)
 	{
-	  volt[i] = val;
+
 	  avolt += volt[i];
 	  //printf("Current ADC Value(val) : %d \r\n", volt[i]);
 	}
@@ -261,7 +267,7 @@ void Voltage_state()
 	  voltage_L = voltage;
 	  printf("Average ADC Volt : %.3f \r\n", voltage_L);
 	  float curr_volt = (1 - ((max_voltage - voltage_L) / voltage_param)) * 100;
-	  printf("배터리 충전 상태 : %.2f \r\n", curr_volt);
+	  printf("배터리 충전 상태 : %.2f% \r\n", curr_volt);
 	}
 	/* Debug */
 //	printf("curr_volt : %.2f \r\n", voltage_L);
