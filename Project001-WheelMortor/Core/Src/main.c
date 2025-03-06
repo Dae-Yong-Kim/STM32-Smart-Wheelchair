@@ -194,11 +194,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 #define BUF_SIZE 100
 char buf1[BUF_SIZE], buf2[BUF_SIZE]; // DMA Buffer
 char dum1, dum2;
-<<<<<<< HEAD
-int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0, temp1 = 0, temp2 = 0, mode = 0; // mode 0: AT command, 1: regularly send AT+INQ and detect entered slave address
-=======
 int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0, temp1 = 0, temp2 = 0; // mode 0: AT command, 1: regularly send AT+INQ and detect entered slave address
->>>>>>> SM
 int sn; //slave number
 char* slave_addr[5] = {"8E4591", "15DA51", "37826F", "A7EF18", "9B0C60"}; // slave address
 
@@ -226,23 +222,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
       }
       HAL_UART_Receive_IT(&huart1, &dum1, 1);         // interrupt chain
    }
-<<<<<<< HEAD
-   else if(huart == &huart2)
-   {
-      buf2[tail2++] = dum2;
-      HAL_UART_Transmit(&huart2, &dum2, 1, 10); // terminal echo
-      if(dum2 == '\r')  // CR : 0x0d
-      {
-         HAL_UART_Transmit(&huart2, "\n", 1, 10); // terminal echo
-         buf2[tail2++] = '\n'; // == HAL_UART_Transmit(&huart1, "\n", 1, 10);
-         HAL_UART_Transmit(&huart1, buf2, tail2, 10);   // AT Command
-         tail2 = 0;
-      }
-      HAL_UART_Receive_IT(&huart2, &dum2, 1);
-   }
-}
-
-=======
    /* Debugging */
 //   else if(huart == &huart2)
 //   {
@@ -291,7 +270,6 @@ void Voltage_state()
 //	printf("배터리 충전 상태 : %.2f \r\n", curr_volt);
 }
 
->>>>>>> SM
 // Gyro_MAX Degree
 double max_Degree;
 
@@ -358,16 +336,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-<<<<<<< HEAD
-	  Read_Z_Angle(&max_Degree);
-	  printf("%3.1f \r\n", max_Degree);
-	  printf("FF_dist : %f, FR_dist : %f, FL_dist : %f \r\n", FF_dist, FR_dist, FL_dist);
-=======
 	  Voltage_state();
 	  //Read_Z_Angle(&max_Degree);
 	  //printf("%3.1f \r\n", max_Degree);
 	  //printf("FF_dist : %f, FR_dist : %f, FL_dist : %f \r\n", FF_dist, FR_dist, FL_dist);
->>>>>>> SM
 	  if(FF_dist == -1 || FR_dist == -1 || FL_dist == -1) {}
 	  else if(FF_dist < 400 && FR_dist < 400 && FL_dist < 400) {	// MoveBackWard
 		  Motor_Mode(0);		// Stop
