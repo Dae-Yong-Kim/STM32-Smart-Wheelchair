@@ -148,7 +148,8 @@ void Motor_Mode(int x)
 }
 
 // GPIO Interrupt
-int t = 1;	// hall sensor 입력 확인
+int t = 1;	// hall sensor Status
+unsigned char sit = 0;  // Force Sensor Status
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch(GPIO_Pin) {
@@ -187,6 +188,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   	  break;
 	case Hall_Pin :
 		printf("입력이 확인되었습니다. (%d 회) \r\n", t++);
+		break;
+	case Force_Pin :
+		sit = ~sit;
+		if(sit)	printf("착석이 확인되었습니다. \r\n");
+		else	printf("착석 부탁드립니다. \r\n");
 		break;
     }
 }
@@ -242,32 +248,42 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 unsigned int val;			 // ADC 측정값
 unsigned int volt[100];		 // ADC 측정값을 100개 저장하는 배열
 unsigned int voltage_i = 0;
+unsigned int voltage_en = 0;
 float voltage = 0.0;         // 현재 전압값을 저장할 변수
 float voltage_L = 12.4;		 // 전압값 감소 확인
 #define min_voltage 9.00
 #define max_voltage 12.20
 #define voltage_param (max_voltage - min_voltage)
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	Voltage_state();
+}
+
 void Voltage_state()
 {
 	unsigned int avolt = 0;	     // volt 평균값
 
 	volt[voltage_i++] = val;
+	printf("voltage_i : %d \r\n", voltage_i);
 	if(voltage_i >= 100) {
 		voltage_i = 0;
+		voltage_en = 1;
 	}
-	for(int i = 0; i < 100; i++)
-	{
-
-	  avolt += volt[i];
-	  //printf("Current ADC Value(val) : %d \r\n", volt[i]);
-	}
-	voltage = avolt * 5 * 3.3 / 409500; // 평균 (avolt / 100) * Resolution (3.3 / 4095) * 분배비 5
-	if(voltage < voltage_L)
-	{
-	  voltage_L = voltage;
-	  printf("Average ADC Volt : %.3f \r\n", voltage_L);
-	  float curr_volt = (1 - ((max_voltage - voltage_L) / voltage_param)) * 100;
-	  printf("배터리 충전 상태 : %.2f% \r\n", curr_volt);
+	if(voltage_en) {
+		for(int i = 0; i < 100; i++)
+		{
+		  avolt += volt[i];
+		  //printf("Current ADC Value(val) : %d \r\n", volt[i]);
+		}
+		voltage = avolt * 5 * 3.3 / 409500; // 평균 (avolt / 100) * Resolution (3.3 / 4095) * 분배비 5
+		if(voltage < voltage_L)
+		{
+		  voltage_L = voltage;
+		  printf("Average ADC Volt : %.3f \r\n", voltage_L);
+		  int curr_volt = (1 - ((max_voltage - voltage_L) / voltage_param)) * 100;
+		  printf("배터리 충전 상태 : %d% \r\n", curr_volt);
+		}
 	}
 	/* Debug */
 //	printf("curr_volt : %.2f \r\n", voltage_L);
@@ -330,7 +346,7 @@ int main(void)
   UART_Start_Receive_IT(&huart2, &dum2, 1);
   HAL_ADC_Start_DMA(&hadc1, &val, 1);
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-  HAL_TIM_Base_Start(&htim3);
+  HAL_TIM_Base_Start_IT(&htim3);
 
   ProgramStart("Mortor test!");
 
@@ -342,7 +358,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  Voltage_state();
+	  //Voltage_state();
 	  //Read_Z_Angle(&max_Degree);
 	  //printf("%3.1f \r\n", max_Degree);
 	  //printf("FF_dist : %f, FR_dist : %f, FL_dist : %f \r\n", FF_dist, FR_dist, FL_dist);
@@ -888,6 +904,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(Hall_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Force_Pin */
+  GPIO_InitStruct.Pin = Force_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(Force_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : FFecho_Pin */
   GPIO_InitStruct.Pin = FFecho_Pin;
