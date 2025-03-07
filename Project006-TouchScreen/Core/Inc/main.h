@@ -61,8 +61,6 @@ void Error_Handler(void);
 #define B1_GPIO_Port GPIOC
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
-#define TP_CS_Pin GPIO_PIN_4
-#define TP_CS_GPIO_Port GPIOA
 #define SD_CS_Pin GPIO_PIN_10
 #define SD_CS_GPIO_Port GPIOB
 #define LCD_BL_Pin GPIO_PIN_7
@@ -77,6 +75,8 @@ void Error_Handler(void);
 #define TCK_GPIO_Port GPIOA
 #define TP_BUSY_Pin GPIO_PIN_3
 #define TP_BUSY_GPIO_Port GPIOB
+#define TP_CS_Pin GPIO_PIN_4
+#define TP_CS_GPIO_Port GPIOB
 #define TP_IRQ_Pin GPIO_PIN_5
 #define TP_IRQ_GPIO_Port GPIOB
 #define TP_IRQ_EXTI_IRQn EXTI9_5_IRQn

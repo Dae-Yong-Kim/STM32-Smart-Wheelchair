@@ -22,6 +22,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "string.h"
+#include <stdio.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,6 +42,13 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
+
+I2C_HandleTypeDef hi2c1;
+
+SPI_HandleTypeDef hspi2;
+
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -54,11 +63,15 @@ UART_HandleTypeDef huart2;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_I2C1_Init(void);
+static void MX_ADC1_Init(void);
+static void MX_SPI2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -67,7 +80,8 @@ static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN 0 */
 int mode = 0, pre_mode = 0;
 double FF_dist = 0, FR_dist = 0, FL_dist = 0;
-
+//0 : Stop ,1 : Fast Front ,2 : Rear ,3 : Quick Left, 4 : Slow Left
+//5 : Quick Light ,6 : Slow Light
 void Motor_Mode(int x)
 {
 	switch(x) {
@@ -103,7 +117,7 @@ void Motor_Mode(int x)
 			  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 1);
 			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
 			  break;
-		  case 4:		// Soft Left
+		  case 4:		// Slow Left
 			  htim1.Instance->CCR1 = 100;		//ENA
 			  htim1.Instance->CCR3 = 300;		//ENB
 
@@ -133,22 +147,12 @@ void Motor_Mode(int x)
 	}
 }
 
-void Motor_Backward()
-{
-}
-
+// GPIO Interrupt
+int t = 1;	// hall sensor Status
+unsigned char sit = 0;  // Force Sensor Status
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch(GPIO_Pin) {
-  case B1_Pin:
-	  mode++;
-	  if(mode == 8)	mode = 0;
-//	  if(mode != 5)	{
-//		  mode++;	// 1: Front, 2: Rear, 3: Left, 4: Right, 0: Stop, 5: Stop (Too Close)
-//		  if(mode == 5)	mode = 0;
-//		  pre_mode = mode;
-//	  }
-	  break;
   case FFecho_Pin:
 	  if(HAL_GPIO_ReadPin(FFecho_GPIO_Port, FFecho_Pin)) {
 		  htim2.Instance->CNT = 0;
@@ -182,55 +186,114 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		  }
   	  }
   	  break;
+	case Hall_Pin :
+		printf("입력이 확인되었습니다. (%d 회) \r\n", t++);
+		break;
+	case Force_Pin :
+		sit = ~sit;
+		if(sit)	printf("착석이 확인되었습니다. \r\n");
+		else	printf("착석 부탁드립니다. \r\n");
+		break;
     }
 }
 
 #define BUF_SIZE 100
 char buf1[BUF_SIZE], buf2[BUF_SIZE]; // DMA Buffer
 char dum1, dum2;
-int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0, temp = 0;
+int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0, temp1 = 0, temp2 = 0; // mode 0: AT command, 1: regularly send AT+INQ and detect entered slave address
+int sn; //slave number
+char* slave_addr[5] = {"8E4591", "15DA51", "37826F", "A7EF18", "9B0C60"}; // slave address
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
    if(huart == &huart1)
    {
       buf1[tail1++] = dum1;
-      //HAL_UART_Transmit(&huart2, &dum1/*== buf1+t1-1*/, 1, 10);      // putty print
+      if(!mode) {
+    	  HAL_UART_Transmit(&huart2, &dum1/*== buf1+t1-1*/, 1, 10);      // putty print
+      }
       if(dum1 == '\r')
       {
-         //CheckCMD(buf1);
-         char comp_buf[BUF_SIZE];
-         if(tail1 > 15) {
-            sprintf(comp_buf, "%s\n\0", &buf1[tail1 - 7]);
-            //printf("%s", comp_buf);
-            if(!strncmp(comp_buf, "9B0C60", 6)) {
-              printf("\r\nI found it%d\r\n\r\n", temp++);
-              mode = 0;
-              pre_mode = mode;
-           }
-         }
-
-
+    	  if(mode){
+			  char comp_buf[BUF_SIZE];
+			  if(tail1 > 15) {
+				  sprintf(comp_buf, "%s\n\0", &buf1[tail1 - 7]);
+				  if(!strncmp(comp_buf, slave_addr[sn], 6)) {
+					  /* Add to Mode select */
+					  printf("I found it%d\r\n\r\n", temp2++);
+				  }
+			  }
+    	  }
          tail1 = 0;
       }
       HAL_UART_Receive_IT(&huart1, &dum1, 1);         // interrupt chain
    }
-   else if(huart == &huart2)
-   {
-      buf2[tail2++] = dum2;
-      HAL_UART_Transmit(&huart2, &dum2, 1, 10); // terminal echo
-      if(dum2 == '\r')  // CR : 0x0d
-      {
-         HAL_UART_Transmit(&huart2, "\n", 1, 10); // terminal echo
-
-         buf2[tail2++] = '\n'; // == HAL_UART_Transmit(&huart1, "\n", 1, 10);
-         HAL_UART_Transmit(&huart1, buf2, tail2, 10);   // AT Command
-//         HAL_UART_Transmit(&huart1, "\n", 1, 10);
-         tail2 = 0;
-      }
-      HAL_UART_Receive_IT(&huart2, &dum2, 1);
-   }
+   /* Debugging */
+//   else if(huart == &huart2)
+//   {
+//      buf2[tail2++] = dum2;
+//      HAL_UART_Transmit(&huart2, &dum2, 1, 10); // terminal echo
+//      if(dum2 == '\r')  // CR : 0x0d
+//      {
+//         HAL_UART_Transmit(&huart2, "\n", 1, 10); // terminal echo
+//         buf2[tail2++] = '\n'; // == HAL_UART_Transmit(&huart1, "\n", 1, 10);
+//         HAL_UART_Transmit(&huart1, buf2, tail2, 10);   // AT Command
+//         tail2 = 0;
+//      }
+//      HAL_UART_Receive_IT(&huart2, &dum2, 1);
+//   }
 }
+
+// Voltage Sensor
+unsigned int val;			 // ADC 측정값
+unsigned int volt[100];		 // ADC 측정값을 100개 저장하는 배열
+unsigned int voltage_i = 0;
+unsigned int voltage_en = 0;
+float voltage = 0.0;         // 현재 전압값을 저장할 변수
+float voltage_L = 12.4;		 // 전압값 감소 확인
+#define min_voltage 9.00
+#define max_voltage 12.20
+#define voltage_param (max_voltage - min_voltage)
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	Voltage_state();
+}
+
+void Voltage_state()
+{
+	unsigned int avolt = 0;	     // volt 평균값
+
+	volt[voltage_i++] = val;
+	printf("voltage_i : %d \r\n", voltage_i);
+	if(voltage_i >= 100) {
+		voltage_i = 0;
+		voltage_en = 1;
+	}
+	if(voltage_en) {
+		for(int i = 0; i < 100; i++)
+		{
+		  avolt += volt[i];
+		  //printf("Current ADC Value(val) : %d \r\n", volt[i]);
+		}
+		voltage = avolt * 5 * 3.3 / 409500; // 평균 (avolt / 100) * Resolution (3.3 / 4095) * 분배비 5
+		if(voltage < voltage_L)
+		{
+		  voltage_L = voltage;
+		  printf("Average ADC Volt : %.3f \r\n", voltage_L);
+		  int curr_volt = (1 - ((max_voltage - voltage_L) / voltage_param)) * 100;
+		  printf("배터리 충전 상태 : %d% \r\n", curr_volt);
+		}
+	}
+	/* Debug */
+//	printf("curr_volt : %.2f \r\n", voltage_L);
+//	printf("voltage param : %.2f \r\n", (max_voltage - voltage_L));
+//	float curr_volt = (1 - ((max_voltage - voltage_L) / voltage_param)) * 100;
+//	printf("배터리 충전 상태 : %.2f \r\n", curr_volt);
+}
+
+// Gyro_MAX Degree
+double max_Degree;
 
 /* USER CODE END 0 */
 
@@ -262,22 +325,32 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
   MX_TIM1_Init();
   MX_USART1_UART_Init();
+  MX_I2C1_Init();
+  MX_ADC1_Init();
+  MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
-  ProgramStart("Mortor test!");
+
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);	// Motor PWM1
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);	// Motor PWM2
-  HAL_TIM_Base_Start(&htim2);
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
   htim1.Instance->CCR1 = htim1.Instance->ARR / 3;
   htim1.Instance->CCR3 = htim1.Instance->ARR / 3;
   //htim3.Instance->CCR2 = 10;
+  HAL_TIM_Base_Start(&htim2);
   UART_Start_Receive_IT(&huart1, &dum1, 1);
   UART_Start_Receive_IT(&huart2, &dum2, 1);
+  HAL_ADC_Start_DMA(&hadc1, &val, 1);
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+  HAL_TIM_Base_Start_IT(&htim3);
+
+  ProgramStart("Mortor test!");
+
+  i2c_Gyro_init(&hi2c1);
 
   /* USER CODE END 2 */
 
@@ -285,7 +358,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  printf("FF_dist : %f, FR_dist : %f, FL_dist : %f \r\n", FF_dist, FR_dist, FL_dist);
+	  //Voltage_state();
+	  //Read_Z_Angle(&max_Degree);
+	  //printf("%3.1f \r\n", max_Degree);
+	  //printf("FF_dist : %f, FR_dist : %f, FL_dist : %f \r\n", FF_dist, FR_dist, FL_dist);
 	  if(FF_dist == -1 || FR_dist == -1 || FL_dist == -1) {}
 	  else if(FF_dist < 400 && FR_dist < 400 && FL_dist < 400) {	// MoveBackWard
 		  Motor_Mode(0);		// Stop
@@ -328,10 +404,8 @@ int main(void)
 		  Motor_Mode(1);		// Front
 	  }
 
-	  //Motor_Mode();
-
 	  HAL_UART_Transmit(&huart1, "AT+INQ\r\n", 8, 10);
-	  HAL_Delay(100);
+	  HAL_Delay(1000);
 
     /* USER CODE END WHILE */
 
@@ -384,6 +458,131 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfDiscConversion = 1;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief SPI2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI2_Init(void)
+{
+
+  /* USER CODE BEGIN SPI2_Init 0 */
+
+  /* USER CODE END SPI2_Init 0 */
+
+  /* USER CODE BEGIN SPI2_Init 1 */
+
+  /* USER CODE END SPI2_Init 1 */
+  /* SPI2 parameter configuration*/
+  hspi2.Instance = SPI2;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi2.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI2_Init 2 */
+
+  /* USER CODE END SPI2_Init 2 */
+
 }
 
 /**
@@ -534,7 +733,7 @@ static void MX_TIM3_Init(void)
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 60000-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
@@ -548,7 +747,7 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
@@ -636,6 +835,22 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -683,6 +898,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Hall_Pin */
+  GPIO_InitStruct.Pin = Hall_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(Hall_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : Force_Pin */
+  GPIO_InitStruct.Pin = Force_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(Force_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : FFecho_Pin */
   GPIO_InitStruct.Pin = FFecho_Pin;

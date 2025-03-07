@@ -76,8 +76,14 @@ void Error_Handler(void);
 #define FRecho_EXTI_IRQn EXTI2_IRQn
 #define IN1_Pin GPIO_PIN_10
 #define IN1_GPIO_Port GPIOB
+#define Hall_Pin GPIO_PIN_12
+#define Hall_GPIO_Port GPIOB
+#define Hall_EXTI_IRQn EXTI15_10_IRQn
 #define FFtrig_Pin GPIO_PIN_7
 #define FFtrig_GPIO_Port GPIOC
+#define Force_Pin GPIO_PIN_8
+#define Force_GPIO_Port GPIOC
+#define Force_EXTI_IRQn EXTI9_5_IRQn
 #define ENA_Pin GPIO_PIN_8
 #define ENA_GPIO_Port GPIOA
 #define FFecho_Pin GPIO_PIN_9

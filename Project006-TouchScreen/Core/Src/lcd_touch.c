@@ -40,6 +40,7 @@ void TP_Init(void)
 //    1    1   0   1    0      0        0    0     :0XD0
 //    --read Y+, ADC resolution is 12 bits,Differential,Power-Down Mode     
 //*******************************************************************************/
+
 static uint16_t TP_read_ADC(uint8_t cmd)
 {
    uint16_t data = 0;
@@ -48,9 +49,8 @@ static uint16_t TP_read_ADC(uint8_t cmd)
 
 	 SPI_Set_Speed(SPI_BAUDRATEPRESCALER_128);
    TP_CS_0;
-
 	 HAL_SPI_TransmitReceive(&hspi1,&cmd,&rx_val,1,0xff);
-   delayMicroseconds(400);
+   delayMicroseconds(1000);
 	 tx_val = 0xFF;
    HAL_SPI_TransmitReceive(&hspi1,&tx_val,&rx_val,1,0xff);
    data = rx_val;
@@ -58,11 +58,15 @@ static uint16_t TP_read_ADC(uint8_t cmd)
    HAL_SPI_TransmitReceive(&hspi1,&tx_val,&rx_val,1,0xff);	 
    data |= rx_val;
    data >>= 3;
+   data &= 0x0FFF;
    TP_CS_1;
+
 	 SPI_Set_Speed(SPI_BAUDRATEPRESCALER_8);
-   
+   //printf("read ADC - data :  %d , rx_val : %d\n\r", data, rx_val);
    return data;
 }
+
+
 
 /*******************************************************************************
 Continuous reading of TP_ READ_ TIMES sub data, sort these data in ascending order, 
@@ -160,7 +164,6 @@ uint8_t TP_Read_ADC_XY2(uint16_t *x_adc, uint16_t  *y_adc )
 unsigned char TP_Scan(unsigned char mode)
 {
   //In X, Y coordinate measurement, IRQ is disabled and output is low
-
   if (!GET_TP_IRQ) //Press the button to press
   {
 			//Read the physical coordinates
@@ -395,15 +398,15 @@ void TP_test(void)
    while(1)
    {
       TP_Scan(0);
-      printf("****SCAN : x: %d, y: %d\r\n", tp_dev.x[0], tp_dev.y[0]);
+      //printf("****SCAN : x: %d, y: %d\r\n", tp_dev.x[0], tp_dev.y[0]);
       HAL_Delay(1000);
       if(tp_dev.statu&TP_PRESS_DOWN)  //touch screen is pressed
       {
-         if(tp_dev.x[0]<lcddev.width && tp_dev.y[0]<(lcddev.height*3)) //The touch point is within the area of the screen
+         if(tp_dev.x[0]<lcddev.width && tp_dev.y[0]<(lcddev.height)) //The touch point is within the area of the screen
          {
-        	 printf(" within the area\r\n");
         	 LCD_Clear(BACKGROUND_COLOR);
         	 ShowSuccessMessage();
+        	 printf(" x: %d, y: %d\r\n", tp_dev.x[0], tp_dev.y[0]);
 
          }
 

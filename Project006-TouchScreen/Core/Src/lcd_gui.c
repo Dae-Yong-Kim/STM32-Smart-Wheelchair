@@ -233,48 +233,24 @@ void Gui_draw_str(uint16_t x, uint16_t y, const char *str_char, FONT* Font, uint
 
 void Gui_draw_heart_with_heartbeat(uint16_t x, uint16_t y, uint16_t heart_color, uint16_t text_color, uint16_t background, uint16_t heartbeat)
 {
-    // 두 원의 반지름과 간격 조정
-    uint8_t radius = 6;
-    uint8_t circle_distance = 8;
 
-    // 두 원 그리기 (하트 상단 부분)
-    Gui_draw_circle(x, y, radius, heart_color, 1, FULL);
-    Gui_draw_circle(x + circle_distance, y, radius, heart_color, 1, FULL);
+    Gui_draw_circle(23, 28, 5, RED, 1, FULL);
+    Gui_draw_circle(30, 28, 5, RED, 1, FULL);
 
-    // 두 원 사이의 영역 채우기
-    for (int i = y - radius; i <= y + radius; i++) {
-        Gui_draw_line(x, i, x + circle_distance, i, heart_color, 1, SOLID);
-    }
-
-    // 하트의 아래쪽 부분 (V자 모양) 그리기
-    uint8_t bottom_height = radius * 2;
-
-    for (int i = 0; i <= bottom_height; i++) {
-        // 왼쪽에서 중앙으로
-        Gui_draw_line(x - radius + i/2, y + i, x + circle_distance/2, y + radius + bottom_height, heart_color, 1, SOLID);
-
-        // 오른쪽에서 중앙으로
-        Gui_draw_line(x + circle_distance + radius - i/2, y + i, x + circle_distance/2, y + radius + bottom_height, heart_color, 1, SOLID);
-    }
-
-    // 하트의 안쪽 채우기
-    for (int i = 0; i <= bottom_height; i++) {
-        int start_x = x - radius + i * (radius + circle_distance/2) / bottom_height;
-        int end_x = x + circle_distance + radius - i * (radius + circle_distance/2) / bottom_height;
-
-        if (y + i <= y + radius + bottom_height) {
-            Gui_draw_line(start_x, y + i, end_x, y + i, heart_color, 1, SOLID);
-        }
-    }
+    Gui_draw_line(18, 26, 24, 35, RED, 2, SOLID);
+    Gui_draw_line(20, 26, 26, 35, RED, 2, SOLID);
+    Gui_draw_line(22, 26, 26, 35, RED, 2, SOLID);
+    Gui_draw_line(24, 26, 26, 35, RED, 2, SOLID);
+    Gui_draw_line(24, 30, 26, 30, RED, 1, SOLID);
+    Gui_draw_line(32, 26, 27, 35, RED, 2, SOLID);
+    Gui_draw_line(34, 26, 27, 35, RED, 2, SOLID);
 
     // 심박수 텍스트 준비 및 표시
     char heartbeat_text[20];
     sprintf(heartbeat_text, "%d bpm", heartbeat);
 
     // 하트 옆에 심박수 텍스트 표시
-    Gui_draw_str(x + circle_distance + radius + 5, y - 4, heartbeat_text, &Font16, text_color, background);
+    Gui_draw_str(38, 23, heartbeat_text, &Font16, text_color, background);
 }
-
-
 
 
