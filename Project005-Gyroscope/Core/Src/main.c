@@ -42,6 +42,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+DMA_HandleTypeDef hdma_i2c1_rx;
 
 UART_HandleTypeDef huart2;
 
@@ -52,6 +53,7 @@ UART_HandleTypeDef huart2;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
@@ -178,10 +180,17 @@ void ReadAcc_Angle()
 
    printf("Raw: X=%d, Y=%d, Z=%d\r\n", acc_x, acc_y, acc_z);
 
+<<<<<<< HEAD
+	// 2?�� 보수 처리 (�??�� ?��?�� 16비트 값으�? �??��)
+	if(acc_x > 32767) acc_x -= 65536;
+	if(acc_y > 32767) acc_y -= 65536;
+	if(acc_z > 32767) acc_z -= 65536;
+=======
    // -16 ~ 16
    double aX = (double)acc_x / 2048.0;   // g Value
    double aY = (double)acc_y / 2048.0;
    double aZ = (double)acc_z / 2048.0;
+>>>>>>> 250673826ab0043e1ea6586ae066b72bd85eedae
 
    printf("g: X=%.3f, Y=%.3f, Z=%.3f\r\n", aX, aY, aZ);
 
@@ -192,8 +201,21 @@ void ReadAcc_Angle()
 
    printf("Roll (X): %3.1f, Pitch (Y): %3.1f\r\n", angleX, angleY);
 
+<<<<<<< HEAD
+	// Roll
+	angleX = atan2(aY, sqrt(pow(aX, 2) + pow(aZ, 2))) * radTodeg;
+	// Pitch
+	angleY = atan2(-aX, sqrt(pow(aY, 2) + pow(aZ, 2))) * radTodeg;
+
+	printf("Roll (X): %3.1f, Pitch (Y): %3.1f\r\n\n", angleX, angleY);
+
+
+//	double accel_yz = sqrt(pow(aY,2)+pow(aZ,2));
+//	angleY = atan(-aX/accel_yz)*radTodeg;
+=======
 //   double accel_yz = sqrt(pow(aY,2)+pow(aZ,2));
 //   angleY = atan(-aX/accel_yz)*radTodeg;
+>>>>>>> 250673826ab0043e1ea6586ae066b72bd85eedae
 //
 //   double accel_xz = sqrt(pow(aX,2)+pow(aZ,2));
 //   angleX = atan(aY/accel_xz)*radTodeg;
@@ -297,6 +319,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
@@ -430,6 +453,22 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
 
 }
 

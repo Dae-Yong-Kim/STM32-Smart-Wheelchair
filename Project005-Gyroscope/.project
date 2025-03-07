@@ -31,9 +31,9 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>Core/Src/myLib.c</name>
+			<name>Core/Src/mylib.c</name>
 			<type>1</type>
-			<locationURI>copy_PARENT/myLib/myLib.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/myLib/Src/mylib.c</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>
