@@ -73,6 +73,7 @@ static void MX_TIM4_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+double FF_dist = 0, FR_dist = 0, FL_dist = 0, BB_dist = 0;
 //0 : Slow Stop , 1 : Emergency Stop, 2 : Forward, 3: Backward
 //4 : Slow Right, 5 : Quick Right
 //6 : Slow Left, 7 : Quick Left
@@ -170,68 +171,70 @@ int mode = 0;
 // 0 : standby, 1 : Passenger, 2 : watchdog
 // 3 : Obstacle, 4 : Forward First, 5 : Right First, 6 : Left First
 // 7 : Destination, 8 : Charge
-void Move_mode()
-{
-	switch(mode)
-	{
-	case 0 :	// Standby
-
-		break;
-	case 1 :	// Passenger
-
-		break;
-	case 2 : 	// Watchdog
-
-		break;
-	case 3 :	// Obstacle
-
-		break;
-	case 4 :	// Forward First
-		if(FF_dist == -1 || FR_dist == -1 || FL_dist == -1) {}
-		else if(FF_dist < 400 && FR_dist < 400 && FL_dist < 400) {	// MoveBackWard
-		  Motor_Mode(0);		// Stop
-		  HAL_Delay(50);
-		  Motor_Mode(2);		// Rear
-		  HAL_Delay(500);
-		  if(FR_dist < FL_dist){
-			  Motor_Mode(3);	// Quick Left
-			  HAL_Delay(800);
-		  }
-		  else if(FR_dist > FL_dist){
-			  Motor_Mode(5);	// Quick Right
-			  HAL_Delay(800);
-		  }
-		}
-		else if((FR_dist < 400) && (FR_dist < FL_dist)){
-		  Motor_Mode(4); // Soft Left
-		  HAL_Delay(800);
-		}
-		else if((FL_dist < 400) && (FR_dist > FL_dist)){
-		  Motor_Mode(6); // Soft right
-		  HAL_Delay(800);
-		}
-		else{
-		  Motor_Mode(1);		// Front
-		}
-		break;
-	case 5 : 	// Right First
-
-		break;
-	case 6 :	// Left First
-
-		break;
-	case 7 :	// Destination
-
-
-		break;
-	case 8 :	// Charge
-
-		break;
-	}
-}
-
-
-double FF_dist = 0, FR_dist = 0, FL_dist = 0, BB_dist = 0;
+//void Move_mode()
+//{
+//	switch(mode)
+//	{
+//	case 0 :	// Standby
+//
+//		break;
+//	case 1 :	// Passenger
+//
+//		break;
+//	case 2 : 	// Watchdog
+//
+//		break;
+//	case 3 :	// Obstacle
+//
+//		break;
+//	case 4 :	// Forward First
+//		if(FF_dist == -1 || FR_dist == -1 || FL_dist == -1) {}
+//		else if(FF_dist < 400 && FR_dist < 400 && FL_dist < 400) {	// MoveBackWard
+//		  Motor_Mode(0);		// Stop
+//		  HAL_Delay(50);
+//		  Motor_Mode(2);		// Rear
+//		  HAL_Delay(500);
+//		  if(FR_dist < FL_dist){
+//			  Motor_Mode(3);	// Quick Left
+//			  HAL_Delay(800);
+//		  }
+//		  else if(FR_dist > FL_dist){
+//			  Motor_Mode(5);	// Quick Right
+//			  HAL_Delay(800);
+//		  }
+//		}
+//		else if((FR_dist < 400) && (FR_dist < FL_dist)){
+//		  Motor_Mode(4); // Soft Left
+//		  HAL_Delay(800);
+//		}
+//		else if((FL_dist < 400) && (FR_dist > FL_dist)){
+//		  Motor_Mode(6); // Soft right
+//		  HAL_Delay(800);
+//		}
+//		else{
+//		  Motor_Mode(1);		// Front
+//		}
+//		break;
+//	case 5 : 	// Right First
+//
+//		break;
+//	case 6 :	// Left First
+//		if(FF_dist == -1 || FR_dist == -1 || FL_dist == -1) {}
+//		else if(FF_dist < 400 && FR_dist < 400 && FL_dist < 400) {	// MoveBackWard
+//		  Motor_Mode(0);		// Stop
+//		  HAL_Delay(50);
+//		  Motor_Mode(2);		// Rear
+//
+//		break;
+//	case 7 :	// Destination
+//
+//
+//		break;
+//	case 8 :	// Charge
+//
+//		break;
+//	}
+//}
 
 // GPIO Interrupt
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -734,7 +737,7 @@ static void MX_TIM4_Init(void)
   htim4.Instance = TIM4;
   htim4.Init.Prescaler = 8400-1;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 20000-1;
+  htim4.Init.Period = 10000-1;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
