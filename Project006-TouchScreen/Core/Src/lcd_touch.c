@@ -127,9 +127,12 @@ static void TP_Read_ADC_XY(uint16_t *x_adc, uint16_t  *y_adc )
    else
    {
       *x_adc = TP_read_adc_avg(0xD0);
-      *y_adc = TP_read_adc_avg(0x90);    
+      *y_adc = TP_read_adc_avg(0x90);
    }
+   printf("6666666666");
 }
+
+
 
 ///*******************************************************************************
 //Read the touch screen IC twice in a row, and the deviation between these two readings 
@@ -151,9 +154,9 @@ uint8_t TP_Read_ADC_XY2(uint16_t *x_adc, uint16_t  *y_adc )
        && ((y2 <= y1 && y1 < y2 + TP_ERR_RANGE) || (y1 <= y2 && y2 < y1 + TP_ERR_RANGE))
 		   && ((x1 != 4095) && (x1 != 0) && (x2 != 4095) && (x2 != 0) && (y1 != 4095) && (y1 != 0) && (y2 != 4095) && (y2 != 0))) 
     {
-//			 printf("AD x1:%d y1:%d x2:%d y2:%d\r\n", x1,y1, x2, y2);
+			 printf("AD x1:%d y1:%d x2:%d y2:%d\r\n", x1,y1, x2, y2);
        *x_adc = (x1 + x2) / 2;
-       *y_adc = (y1 + y2) / 2;		
+       *y_adc = (y1 + y2) / 2;
        return 1;
     }
     return 0;
@@ -166,23 +169,29 @@ unsigned char TP_Scan(unsigned char mode)
   //In X, Y coordinate measurement, IRQ is disabled and output is low
   if (!GET_TP_IRQ) //Press the button to press
   {
+	  printf("2222222222222\r\n");
 			//Read the physical coordinates
-			if (mode) 
+			if (mode)
 			{
+				  printf("3333333333333\r\n");
 				 TP_Read_ADC_XY2(&tp_dev.x[0], &tp_dev.y[0]);
-			} 
+			}
 			else if (TP_Read_ADC_XY2(&tp_dev.x[0], &tp_dev.y[0])) //Read the screen coordinates
 			{
-					//Convert the X-axis physical coordinates into logical coordinates (that is, corresponding to the X coordinate value on the LCD screen) 
+				  printf("444444444444444\r\n");
+				printf("before - x: %d, y: %d\r\n", tp_dev.x[0], tp_dev.y[0]);
+					//Convert the X-axis physical coordinates into logical coordinates (that is, corresponding to the X coordinate value on the LCD screen)
 					tp_dev.x[0] = (signed short)(tp_dev.x[0] - tp_dev.xc) / tp_dev.xfac + lcddev.width / 2;
 
-					//Convert the Y-axis physical coordinates into logical coordinates (that is, corresponding to the Y coordinate value on the LCD screen) 
+					//Convert the Y-axis physical coordinates into logical coordinates (that is, corresponding to the Y coordinate value on the LCD screen)
 					tp_dev.y[0] = (signed short)(tp_dev.y[0] - tp_dev.yc) / tp_dev.yfac + lcddev.height / 2;
+					printf("after - x: %d, y: %d\r\n\r\n", tp_dev.x[0], tp_dev.y[0]);
 
 			}
-			if ((tp_dev.statu & TP_PRESS_DOWN) == 0) //was not pressed before 
+			if ((tp_dev.statu & TP_PRESS_DOWN) == 0) //was not pressed before
 			{
-				 tp_dev.statu = TP_PRESS_DOWN | TP_CATH_PRES; //pressed 
+				  printf("555555555555555\r\n");
+				 tp_dev.statu = TP_PRESS_DOWN | TP_CATH_PRES; //pressed
 				 tp_dev.x[4] = tp_dev.x[0]; //Save the coordinates of the first press
 				 tp_dev.y[4] = tp_dev.y[0];
 			}
@@ -193,7 +202,7 @@ unsigned char TP_Scan(unsigned char mode)
 			{
 				 tp_dev.statu &= ~TP_PRESS_DOWN; //Mark key released
 			}
-			else 
+			else
 			{
 				 tp_dev.x[4] = 0;
 				 tp_dev.y[4] = 0;
@@ -397,6 +406,7 @@ void TP_test(void)
    uint16_t paint_width = 2;
    while(1)
    {
+	  printf("1111111111111111\r\n");
       TP_Scan(0);
       //printf("****SCAN : x: %d, y: %d\r\n", tp_dev.x[0], tp_dev.y[0]);
       HAL_Delay(1000);
