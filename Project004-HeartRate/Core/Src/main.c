@@ -199,7 +199,7 @@ int main(void)
   while (1)
   {
 	  HAL_I2C_Mem_Read(&hi2c1, R_addr, 0x00, 1, &data, 1, 1000);
-	  if(data == 0x40) {
+	  if(data & 0x40) {
 		  int IRValue = getIR();
 
 		  if(checkForBeat(IRValue)) {
