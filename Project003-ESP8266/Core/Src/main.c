@@ -59,21 +59,114 @@ static void MX_USART1_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 #define BUF_SIZE 100
-char buf1[BUF_SIZE], buf2[BUF_SIZE]; // DMA Buffer
+char buf1[BUF_SIZE], buf2[BUF_SIZE], temp_AT[BUF_SIZE]; // DMA Buffer
 char dum1, dum2;
 int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0;
+char stm_c[5] = { '0', }, app_c[5] = { '0', };
+int stm_i = 0, app_i = 0;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
    if(huart == &huart1)
    {
-      buf1[tail1++] = dum1;
+	   if((dum1 != '\r') && (dum1 != '\n')) {
+		   buf1[tail1++] = dum1;
+		   HAL_UART_Transmit(&huart2, &dum1/*== buf1+t1-1*/, 1, 10);      // putty print
+	   }
 
-      HAL_UART_Transmit(&huart2, &dum1/*== buf1+t1-1*/, 1, 10);      // putty print
-
-      if(dum1 == '\r')
+      if(dum1 == '\n')
       {
-         //CheckCMD(buf1);
+    	  if(tail1 != 0) {
+    		  HAL_UART_Transmit(&huart2, "\r\n", 2, 10);
+    		  buf1[tail1] = '\0';
+
+    		  char comp_buf[BUF_SIZE];
+    		  sprintf(comp_buf, "%s", buf1);
+    		  //printf("buf1: %s | comp_buf: %s", buf1, comp_buf);
+    		  if(!strncmp(comp_buf + 2, "CONNECT", 7)) {
+    			  app_c[app_i++] = buf1[0];
+    			  printf("connect app.\r\n");
+    		  }
+
+    		  if(!strncmp(comp_buf, "+IPD,", 5)) {
+    			  char temp_val[BUF_SIZE];
+    			  switch(comp_buf[9]) {												// Recieve MSG From Client
+    				  case '0':														// Emergency (Not use in Server)
+    					  break;
+    				  case '1':														// Origin is xxx (Not use in Server)
+    					  // Origin is xxx
+    					  break;
+    				  case '2':														// Destination is xxx
+    					  // recieve 2xxx value ==> Destination is xxx
+						  sprintf(temp_val, "%c%c%c%c\r\n", comp_buf[9], comp_buf[10], comp_buf[11], comp_buf[12]);
+						  for(int i = 0; i < app_i; i++) {
+							  HAL_UART_Transmit(&huart1, "AT+CIPSEND=", 11, 10);
+							  sprintf(temp_AT, "%c,6\r\n\0", app_c[i]);
+							  HAL_UART_Transmit(&huart1, temp_AT, 5, 10);
+							  printf("temp_AT: %s, temp_val: %s", temp_AT, temp_val);
+							  HAL_UART_Transmit(&huart1, temp_val, 6, 10);
+						  }
+    					  break;
+    				  case '3':														// Arrive at Destination (Not use in Server)
+    					  break;
+    				  case '4':														// Hall Sensor
+    					  if(comp_buf[10] == '0') {
+    						  // Unbuckle seat belt
+    						  printf("Unbuckle seat belt\r\n");
+    					  }
+    					  else if(comp_buf[10] == '1') {
+    						  // Buckle seat belt
+    						  printf("Buckle seat belt\r\n");
+    					  }
+    					  break;
+    				  case '5':														// Force Sensor
+    					  if(comp_buf[10] == '0') {
+    						  // Pressure X
+    						  printf("Pressure X\r\n");
+    					  }
+    					  else if(comp_buf[10] == '1') {
+    						  // Pressure O
+    						  printf("Pressure O\r\n");
+    					  }
+    					  break;
+    				  case '6':														// Heart Beat Sensor
+    					  if(comp_buf[10] == '9') {
+    						  // no finger
+    						  printf("no finger\r\n");
+    					  }
+    					  else {
+    						  // recieve 6xxx value ==> current BPM is xxxBPM
+    						  printf("BPM: %c%c%cBPM\r\n", temp_val[10], temp_val[11], temp_val[12]);
+    					  }
+    					  break;
+    				  case '7':														// Voltage Sensor (Not use in Server)
+    					  break;
+    				  case '8':														// STM Client
+    					  stm_c[stm_i++] = app_c[--app_i];
+    					  app_c[app_i] = '0';
+    					  printf("not connect app. connect stm.\r\n");
+    					  break;
+    			  }
+    		  }
+
+    		  if(!strncmp(comp_buf + 2, "CLOSED", 6)) {
+    			  if((app_i > 0) && (app_c[app_i - 1] == buf1[0])) {
+    				  app_c[--app_i] = '0';
+    				  printf("disconnect app.\r\n");
+    			  }
+    			  else if((stm_i > 0) && (stm_c[stm_i - 1] == buf1[0])) {
+    				  stm_c[--stm_i] = '0';
+    				  printf("disconnect stm.\r\n");
+    			  }
+    		  }
+    		  for(int i = 0; i < stm_i; i++) {
+    			  printf("i: %d, stm content: %c\r\n", i, stm_c[i]);
+    		  }
+    		  for(int i = 0; i < app_i; i++) {
+    			  printf("i: %d, app content: %c\r\n", i, app_c[i]);
+    		  }
+    	  }
+
          tail1 = 0;
       }
       HAL_UART_Receive_IT(&huart1, &dum1, 1);         // interrupt chain
@@ -94,6 +187,27 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
       }
       HAL_UART_Receive_IT(&huart2, &dum2, 1);
    }
+}
+
+void ESP8266_server_init(){
+	/*HAL_UART_Transmit(&huart1, "AT+RST\r\n", 8, 10);					// RESET
+	HAL_Delay(1000);*/
+
+	HAL_UART_Transmit(&huart1, "AT+CWMODE=2", 11, 10);				// 1: CLIENT MODE, 2: SERVER MODE, 3: Multi mode
+	HAL_UART_Transmit(&huart1, "\r\n", 2, 10);
+	HAL_Delay(10);
+
+	HAL_UART_Transmit(&huart1, "AT+CIPMUX=1", 11, 10);				// 0: single connection mode, 1: multi connection mode
+	HAL_UART_Transmit(&huart1, "\r\n", 2, 10);
+	HAL_Delay(10);
+
+	HAL_UART_Transmit(&huart1, "AT+CIPSERVE", 11, 10);
+	HAL_UART_Transmit(&huart1, "R=1,3000\r\n", 10, 10);		// SERVER setting (0: SERVER CLOSE, 1: SERVER OPEN)
+	HAL_Delay(10);
+
+	/*HAL_UART_Transmit(&huart1, "AT+CIFSR", 11, 10);					// Show IP & MAC Address
+	HAL_UART_Transmit(&huart1, "\r\n", 2, 10);
+	HAL_Delay(10);*/
 }
 /* USER CODE END 0 */
 
@@ -131,6 +245,7 @@ int main(void)
   ProgramStart("ESP8266 Test - Start");
   UART_Start_Receive_IT(&huart1, &dum1, 1);
   UART_Start_Receive_IT(&huart2, &dum2, 1);
+  ESP8266_server_init();
 
   /* USER CODE END 2 */
 
