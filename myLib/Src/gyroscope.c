@@ -39,15 +39,15 @@ void Gyro_ModuleSet()
 	HAL_I2C_Mem_Write(hi2c, Gyro_addr, 0x1B, 1, &data, 1, 1000);
 	HAL_Delay(100);
 
-	// Accelerometer set : 0x1C
-	data = 0x18;	// -16 ~ +16 g
-	HAL_I2C_Mem_Write(hi2c, Gyro_addr, 0x1C, 1, &data, 1, 1000);
-	HAL_Delay(100);
-
-	// Accelerometer LPF set : 0x1D
-	data = 0x00;	// 460 Hz LPF
-	HAL_I2C_Mem_Write(hi2c, Gyro_addr, 0x1D, 1, &data, 1, 1000);
-	HAL_Delay(100);
+//	// Accelerometer set : 0x1C
+//	data = 0x18;	// -16 ~ +16 g
+//	HAL_I2C_Mem_Write(hi2c, Gyro_addr, 0x1C, 1, &data, 1, 1000);
+//	HAL_Delay(100);
+//
+//	// Accelerometer LPF set : 0x1D
+//	data = 0x00;	// 460 Hz LPF
+//	HAL_I2C_Mem_Write(hi2c, Gyro_addr, 0x1D, 1, &data, 1, 1000);
+//	HAL_Delay(100);
 }
 
 unsigned char gyro[6];
@@ -88,7 +88,6 @@ void ReadAcc()
 double radTodeg = 180 / (3.141592);
 double angleX = 0.0;  // Roll
 double angleY = 0.0;  // Pitch
-//double angleZ = 0.0;
 
 void ReadAcc_Angle()
 {
@@ -113,27 +112,27 @@ void ReadAcc_Angle()
 	printf("Roll (X): %3.1f, Pitch (Y): %3.1f\r\n", angleX, angleY);
 }
 
-double gyroZbias = 0.0; // Gyro Noise
-// Gyro Standard Noise Detect
-void CalibrateGyro()
-{
-    int sum = 0;
-    int samples = 10;
-
-    for(int i = 0; i < samples; i++)
-    {
-        HAL_I2C_Mem_Read(hi2c, Gyro_addr, 0x47, 1, gyro, 2, 1000);
-        short gZ = (gyro[0]<<8) + gyro[1];
-        //gZ = gZ / 131.0;
-        if((gZ > 0.05) || (gZ < -150))	sum += 0;
-        else							sum += gZ;
-        HAL_Delay(10);
-    }
-    double devide = (double)samples * 131;
-    gyroZbias = (double)sum / devide;
-    printf("gyroZbias : %7.3f\r\n", gyroZbias);
-    HAL_Delay(10);
-}
+//double gyroZbias = 0.0; // Gyro Noise
+//// Gyro Standard Noise Detect
+//void CalibrateGyro()
+//{
+//    int sum = 0;
+//    int samples = 10;
+//
+//    for(int i = 0; i < samples; i++)
+//    {
+//        HAL_I2C_Mem_Read(hi2c, Gyro_addr, 0x47, 1, gyro, 2, 1000);
+//        short gZ = (gyro[0]<<8) + gyro[1];
+//        //gZ = gZ / 131.0;
+//        if((gZ > 0.05) || (gZ < -150))	sum += 0;
+//        else							sum += gZ;
+//        HAL_Delay(10);
+//    }
+//    double devide = (double)samples * 131;
+//    gyroZbias = (double)sum / devide;
+//    printf("gyroZbias : %7.3f\r\n", gyroZbias);
+//    HAL_Delay(10);
+//}
 
 unsigned char gy_z[2];
 double pre_gZ = 0, total_gZ = 0;
@@ -141,39 +140,102 @@ int before = 0;
 double max_degree = 0;
 void Read_Z_Angle(double* max)
 {
-	CalibrateGyro();
+	//CalibrateGyro();
 
 	HAL_I2C_Mem_Read(hi2c, Gyro_addr, 0x47, 1, gy_z, 2, 1000);
 
 	short gyro_z = (gy_z[0]<<8) + gy_z[1];
 	double gZ = (double)gyro_z / 131.0;
 
+	if((gZ>-1.5) && (gZ<-0.3))
+	{
+		gZ = 0;
+		total_gZ = 0;
+		before = HAL_GetTick();
+		//printf("gZ: %7.3f | total z degree: %7.3f\r\n", gZ, total_gZ);
 
-	gZ -= gyroZbias;
-
-	total_gZ += (gZ + pre_gZ) * (HAL_GetTick() - before) / 2000;
-
-	double gyroRate = gZ;
-	double gyroAngle = total_gZ;
-
-	printf("gyrorate: %7.3f, gyroAngle: %7.3f\r\n", gyroRate, gyroAngle);
-
-	// filter
-	if (fabs(gyroRate) < 0.05) {
-		// Steady state
-		total_gZ = pre_gZ * 0.999 + gyroAngle * 0.001;
-	} else {
-		// Move State
-		total_gZ = gyroAngle * 0.999 + pre_gZ * 0.001;
+		max_degree = 0;
+		*max = max_degree;
 	}
+	else
+	{
+		//gZ -= gyroZbias;
+		if(!before)
+		{
+			before = HAL_GetTick();
+		}
+		else
+		{
+			total_gZ += (gZ + pre_gZ) * (HAL_GetTick() - before) / 2000;
 
-	printf("gZ: %7.3f | total z degree: %7.3f\r\n", gZ, total_gZ);
+			double gyroRate = gZ;
+			double gyroAngle = total_gZ;
 
-	pre_gZ = gZ;
-	before = HAL_GetTick();
+			//printf("gyrorate: %7.3f, gyroAngle: %7.3f\r\n", gyroRate, gyroAngle);
 
-	if(fabs(max_degree) < fabs(total_gZ))	max_degree = total_gZ;
-	printf("max_degree : %7.3f\r\n", max_degree);
+			// filter
+			if (fabs(gyroRate) < 0.05) {
+				// Steady state
+				total_gZ = pre_gZ * 0.999 + gyroAngle * 0.001;
+			} else {
+				// Move State
+				total_gZ = gyroAngle * 0.999 + pre_gZ * 0.001;
+			}
 
-	*max = max_degree;
+			//printf("gZ: %7.3f | total z degree: %7.3f\r\n", gZ, total_gZ);
+
+			pre_gZ = gZ;
+			before = HAL_GetTick();
+		}
+//		total_gZ += (gZ + pre_gZ) * (HAL_GetTick() - before) / 2000;
+//
+//		double gyroRate = gZ;
+//		double gyroAngle = total_gZ;
+//
+//		//printf("gyrorate: %7.3f, gyroAngle: %7.3f\r\n", gyroRate, gyroAngle);
+//
+//		// filter
+//		if (fabs(gyroRate) < 0.05) {
+//			// Steady state
+//			total_gZ = pre_gZ * 0.999 + gyroAngle * 0.001;
+//		} else {
+//			// Move State
+//			total_gZ = gyroAngle * 0.999 + pre_gZ * 0.001;
+//		}
+//
+//		//printf("gZ: %7.3f | total z degree: %7.3f\r\n", gZ, total_gZ);
+//
+//		pre_gZ = gZ;
+//		before = HAL_GetTick();
+
+		if(fabs(max_degree) < fabs(total_gZ))	max_degree = total_gZ;
+		//printf("max_degree : %7.3f\r\n", max_degree);
+
+		*max = max_degree;
+	}
 }
+
+//void Gyro_reSet()
+//{
+//	max_degree = 0;
+//	total_gZ = 0;
+//	pre_gZ = 0;
+//	before = 0;
+//	HAL_Delay(10);
+//
+////	// Signal Path Reset : 0x68
+////	data = 0x07;	// All Reset
+////	HAL_I2C_Mem_Write(hi2c, Gyro_addr, 0x68, 1, &data, 1, 1000);
+////	HAL_Delay(100);
+////
+////	// Sampling Rate set : 0x19
+////	data = 0x00;	// 1kHz Sampling Rate
+////	HAL_I2C_Mem_Write(hi2c, Gyro_addr, 0x19, 1, &data, 1, 1000);
+////	HAL_Delay(100);
+////
+////	// Gyroscope set : 0x1B
+////	data = 0x00;	// -250 ~ +250 Degree/sec
+////	HAL_I2C_Mem_Write(hi2c, Gyro_addr, 0x1B, 1, &data, 1, 1000);
+////	HAL_Delay(100);
+//}
+

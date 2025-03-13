@@ -31,6 +31,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>Core/Src/gyroscope.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/myLib/Src/gyroscope.c</locationURI>
+		</link>
+		<link>
 			<name>Core/Src/myLib.c</name>
 			<type>1</type>
 			<locationURI>copy_PARENT/myLib/myLib.c</locationURI>
