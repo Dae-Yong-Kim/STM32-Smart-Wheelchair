@@ -64,6 +64,40 @@ char dum1, dum2;
 int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0;
 char stm_c[5] = { '0', }, app_c[5] = { '0', };
 int stm_i = 0, app_i = 0;
+int last_printe = 0;
+
+int printe(char* str, int id) {
+	if((HAL_GetTick() - last_printe) < 100) {
+		return 0;
+	}
+	else {
+		char temp_str[BUF_SIZE], temp_AT[BUF_SIZE];
+		int str_len = strlen(str);
+		sprintf(temp_str, "%s", str);
+		temp_str[str_len++] = '\r';
+		temp_str[str_len++] = '\n';
+		temp_str[str_len] = '\0';
+		if((str_len > 2) && (str_len < 100)) {
+			HAL_UART_Transmit(&huart1, "AT+CIPSEND=", 11, 10);
+			sprintf(temp_AT, "%d,%d\r\n", id, str_len);
+			if(str_len < 10) {
+				HAL_UART_Transmit(&huart1, temp_AT, 5, 10);
+			}
+			else {
+				HAL_UART_Transmit(&huart1, temp_AT, 6, 10);
+			}
+			int n = str_len / 11;
+			int i = 0;
+			printf("loading..................................\r\n");
+			for(i = 0; i < n; i++) {
+				HAL_UART_Transmit(&huart1, temp_str + (i * 11), 11, 10);
+			}
+			HAL_UART_Transmit(&huart1, temp_str + (i * 11), str_len - (i * 11), 10);
+		}
+		last_printe = HAL_GetTick();
+	}
+	return 1;
+}
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -98,13 +132,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     					  break;
     				  case '2':														// Destination is xxx
     					  // recieve 2xxx value ==> Destination is xxx
-						  sprintf(temp_val, "%c%c%c%c\r\n", comp_buf[9], comp_buf[10], comp_buf[11], comp_buf[12]);
+						  sprintf(temp_val, "%c%c%c%c", comp_buf[9], comp_buf[10], comp_buf[11], comp_buf[12]);
 						  for(int i = 0; i < app_i; i++) {
-							  HAL_UART_Transmit(&huart1, "AT+CIPSEND=", 11, 10);
-							  sprintf(temp_AT, "%c,6\r\n\0", app_c[i]);
-							  HAL_UART_Transmit(&huart1, temp_AT, 5, 10);
-							  printf("temp_AT: %s, temp_val: %s", temp_AT, temp_val);
-							  HAL_UART_Transmit(&huart1, temp_val, 6, 10);
+							  while(!printe(temp_val, app_c[i]));
 						  }
     					  break;
     				  case '3':														// Arrive at Destination (Not use in Server)
@@ -130,13 +160,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     					  }
     					  break;
     				  case '6':														// Heart Beat Sensor
-    					  if(comp_buf[10] == '9') {
+    					  if(comp_buf[10] == '0') {
     						  // no finger
     						  printf("no finger\r\n");
     					  }
-    					  else {
-    						  // recieve 6xxx value ==> current BPM is xxxBPM
-    						  printf("BPM: %c%c%cBPM\r\n", temp_val[10], temp_val[11], temp_val[12]);
+    					  else if(comp_buf[10] == '1'){
+    						  // recieve 61xx value ==> normal
+    						  printf("normal\r\n");
+    					  }
+    					  else if(comp_buf[10] == '2'){
+    						  // recieve 62xx value ==> abnormal
+    						  printf("abnormal\r\n");
     					  }
     					  break;
     				  case '7':														// Voltage Sensor (Not use in Server)
@@ -245,7 +279,7 @@ int main(void)
   ProgramStart("ESP8266 Test - Start");
   UART_Start_Receive_IT(&huart1, &dum1, 1);
   UART_Start_Receive_IT(&huart2, &dum2, 1);
-  ESP8266_server_init();
+  //ESP8266_server_init();
 
   /* USER CODE END 2 */
 
@@ -322,7 +356,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
+  huart1.Init.BaudRate = 115200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
