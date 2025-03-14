@@ -283,7 +283,7 @@ void Move_mode()
 		while(Dturn < 160)
 		{
 			//printf("BB_dist = %.2f\r\n", BB_dist);
-			Read_Z_Angle(&Dturn);
+			//Read_Z_Angle(&Dturn);
 			sprintf(debug_buf2, "%.2f", Dturn);
 			printe(debug_buf2);
 			HAL_Delay(200);
@@ -757,10 +757,10 @@ int main(void)
 	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);	// Ultrasonic BB_Echo
 	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_3);	// Ultrasonic FR_Echo
 	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_4);	// Ultrasonic FL_Echo
-	i2c_Gyro_init(&hi2c1);
-	Gyro_ModuleSet();
+	//i2c_Gyro_init(&hi2c1);
+	//Gyro_ModuleSet();
 
-	//ESP8266_server_init();
+	ESP8266_server_init();
 	ProgramStart("Motor + Bluetooth + Usonic + Gyro");
 
 
