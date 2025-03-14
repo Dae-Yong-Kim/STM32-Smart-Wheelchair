@@ -1,0 +1,32 @@
+{
+  "name": "djikstraserver",
+  "version": "1.0.0",
+  "main": "DijkstraServer.js",
+  "scripts": {
+    "test": "node DijkstraServer.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dae-Yong-Kim/STM32-Smart-Wheelchair.git"
+  },
+  "keywords": [
+    "Dikstra",
+    "Algorithm",
+    "Server",
+    "for",
+    "Smart",
+    "Wheelchair"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Dae-Yong-Kim/STM32-Smart-Wheelchair/issues"
+  },
+  "homepage": "https://github.com/Dae-Yong-Kim/STM32-Smart-Wheelchair#readme",
+  "description": "",
+  "dependencies": {
+    "express": "^4.21.2",
+    "http": "^0.0.1-security",
+    "socket.io": "^4.8.1"
+  }
+}
