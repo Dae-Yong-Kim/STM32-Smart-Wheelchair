@@ -44,6 +44,9 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+DMA_HandleTypeDef hdma_adc1;
+
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim1;
@@ -64,6 +67,7 @@ osThreadId Task03Handle;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM3_Init(void);
@@ -71,6 +75,7 @@ static void MX_TIM5_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART6_UART_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_ADC1_Init(void);
 void StartTask1(void const * argument);
 void StartTask02(void const * argument);
 void StartTask03(void const * argument);
@@ -81,6 +86,10 @@ void StartTask03(void const * argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+// Gyro Max Value
+//double MAX_D = 0;
+int MAX_D = 0;
 
 // SM has to change huart6
 // use : while(!printe("6100"));
@@ -93,22 +102,92 @@ int tail1 = 0, tail2 = 0, tail3 = 0; // 1 : ESP, 2 : Putty, 3 : Bluetooth
 int TCP_connect = 1, WIFI_connect = 1, esp_set = 0;
 //int ESP_state = 0;
 
-/* ESP8266 Send
-point1 (8E4591) : 6
-point2 (37826F) : 4
-pcharage (A7EF18) : 2 */
+/* ESP8266 Send : Destination Information
+Start point1 (8E4591) = D (2100)   		: 8
+Destination point2 (37826F) = A(2200)   : 6
+charging Station (A7EF18) = B(2300)	: 4 */
 int ESP_send = 0;
 
+/* send to ESP : Start Point & Charging Station
+Corner (15DA51) = C (1000)
+Start point1 (8E4591) = D (1100)
+Destination point2 (37826F) = A(1200)
+charging Station (A7EF18) = B(1300)*/
+int STM_send = 0;
+
 // Driving Mode Select
+/*0 : standby, 1 : Passnger, 2 : Drive, 3 : Watchdog, 4 : Destination, 5 : Charge*/
 int drive_set = 0;
 
 /* 8E4591 : Start Point, 15DA51 : Corner Point
  37826F : Destination Point, A7EF18 : Charging State Point */
-char* slave_addr[5] = {"8E4591", "15DA51", "37826F", "A7EF18"/*, "9B0C60"*/}; // slave address
-int BLE_point = 0;
+char* slave_addr[5] = {"8E4591", "15DA51", "37826F", "A7EF18"/*, "9B0C60"*/};
 /*point1 (8E4591) : 1
 point2 (37826F) : 2
 pcharge (A7EF18) : 3*/
+int BLE_point = 0;
+/* Map List
+map = 1 : point1 - corner1 - point2 = 7
+map = 2 : point1 - corner1 - pcharge = 5
+map = 3 : point2 - corner1 - point1 = 10
+map = 4 : point2 - corner1 - pcharge = 6
+map = 5 : pcharge - corner1 - point1 = 11
+map = 6 : pcharge - corner1 - point2 = 9*/
+int map_select = 0;
+int map_set = 0;
+// Drive Mode Set
+/*0 : straight, 1 : left, 2 : right, 3 : back*/
+int Move_mode = 0;
+void MAP_operation()
+{
+	switch(map_select)
+	{
+	case 1 :	// 8E4591 - 15DA51 - 37826F
+		if(drive_set == 2)
+		{
+			if(BLE_point == 4)		Move_mode = 1;
+			else if(BLE_point == 2)	drive_set = 4;
+		}
+		break;
+	case 2 :	// 8E4591 - 15DA51 - A7EF18
+		if(drive_set == 2)
+		{
+			if(BLE_point == 4)		Move_mode = 0;
+			else if(BLE_point == 3)	drive_set = 4;
+		}
+		break;
+	case 3 :	// 37826F - 15DA51 - 8E4591
+		if(drive_set == 2)
+		{
+			if(BLE_point == 4)		Move_mode = 2;
+			else if(BLE_point == 1)	drive_set = 4;
+		}
+		break;
+	case 4 :	// 37826F - 15DA51 - A7EF18
+		if(drive_set == 2)
+		{
+			if(BLE_point == 4)		Move_mode = 1;
+			else if(BLE_point == 3)	drive_set = 4;
+		}
+		break;
+	case 5 :	// A7EF18 - 15DA51 - 8E4591
+		if(drive_set == 2)
+		{
+			if(BLE_point == 4)		Move_mode = 0;
+			else if(BLE_point == 1)	drive_set = 4;
+		}
+		break;
+	case 6 :	// A7EF18 - 15DA51 - 37826F
+		if(drive_set == 2)
+		{
+			if(BLE_point == 4)		Move_mode = 2;
+			else if(BLE_point == 2)	drive_set = 4;
+		}
+		break;
+	default :
+		break;
+	}
+}
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
    if(huart == &huart6)
@@ -131,12 +210,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
            if(!strncmp(buf1, "4,CLOSED", 8)) {
               TCP_connect = 1;
            }
-           if(!strncmp(buf1, "WIFI GOT IP", 11)) {
-			WIFI_connect = 0;
-		 }
-           if(!strncmp(buf1, "WIFI DISCONNECT", 15)) {
-        	   WIFI_connect = 1;
-           }
+//           if(!strncmp(buf1, "WIFI GOT IP", 11)) {
+//			WIFI_connect = 0;
+//		 }
+//           if(!strncmp(buf1, "WIFI DISCONNECT", 15)) {
+//        	   WIFI_connect = 1;
+//           }
            if(!strncmp(buf1, "OK", 2)) {
         	   esp_set++;
            }
@@ -145,20 +224,20 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 				case '0':	// Emergency & Normal State Set
 				   //buf1[10] 0 : emergency, 1 : Force OK, 2 : Heart Rate OK, 3 : Total OK
 					unsigned char ESP_words0 = buf1[10];
-					if(drive_set == 0)		// Standby Mode
+					if(drive_set == 2)	// Driveing Mode
 					{
-						if(ESP_words0 == '1')	drive_set = 1;
+						if(ESP_words0 == '0')	drive_set = 3;	//	Watchdog
+						else					drive_set = 2;
+					}
+					else if(drive_set == 0) // Standby Mode
+					{
+						if(ESP_words0 == '1')	drive_set = 1;	// Passenger
 						else					drive_set = 0;
 					}
 					else if(drive_set == 1)	// Passenger Mode
 					{
-						if(ESP_words0 == '3')	drive_set = 2;
-						else					drive_set = 1;
-					}
-					else if(drive_set == 2)	// Driving Mode
-					{
-						if(ESP_words0 == '0')	drive_set = 3;
-						else					drive_set = 2;
+						if((ESP_words0 == '3') && map_set)	drive_set = 2;
+						else								drive_set = 1;
 					}
 					else if(drive_set == 3)	// Watchdog Mode
 					{
@@ -166,16 +245,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 						else					drive_set = 3;
 					}
 					break;
-//				case '1':	// Origin is xxx (Not use in Server)
-//				   // Origin is xxx
-//				   break;
+				case '1':	// Origin is xxx (Not use in Server)
+				   // Origin is xxx
+				   break;
 				case '2':	// Destination Set
 					unsigned char ESP_words1 = buf1[10];
 					if(drive_set == 1)
 					{
-						if(ESP_words0 == '6')		ESP_send = 6;
+						if(ESP_words0 == '8')		ESP_send = 8;
+						else if(ESP_words0 == '6')	ESP_send = 6;
 						else if(ESP_words0 == '4')	ESP_send = 4;
-						else if(ESP_words0 == '2')	ESP_send = 2;
 					}
 				   break;
 //				case '3':	// Arrive at Destination (Not use in Server)
@@ -214,24 +293,32 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		  if(tail3 > 15) {
 			  sprintf(comp_buf, "%s\n\0", &buf3[tail3 - 7]);
 			  // Start Point
-			  if(!strncmp(comp_buf, slave_addr[0], 6))	// 8E4591
+			  if(!strncmp(comp_buf, slave_addr[0], 6))	// 8E4591 ( Start Point )
 			  {
 				  BLE_point = 1;
+				  MAP_operation();
+				  //printf("========Start BLE %d========\r\n", BLE_point);
 			  }
 			  // Corner Point
-			  else if(!strncmp(comp_buf, slave_addr[1], 6))	// 15DA51
+			  else if(!strncmp(comp_buf, slave_addr[1], 6))	// 15DA51 ( Corner Point )
 			  {
 				  BLE_point = 4;
+				  MAP_operation();
+				  //printf("========Corner BLE %d========\r\n", BLE_point);
 			  }
 			  // Destination Point
-			  else if(!strncmp(comp_buf, slave_addr[2], 6))	// 37826F
+			  else if(!strncmp(comp_buf, slave_addr[2], 6))	// 37826F ( Destination Point )
 			  {
 				  BLE_point = 2;
+				  MAP_operation();
+				  //printf("========Destination BLE %d========\r\n", BLE_point);
 			  }
 			  // Charging State Point
-			  else if(!strncmp(comp_buf, slave_addr[3], 6))	// A7EF18
+			  else if(!strncmp(comp_buf, slave_addr[3], 6))	// A7EF18 ( Charging Station )
 			  {
 				  BLE_point = 3;
+				  MAP_operation();
+				  //printf("========Charge BLE %d========\r\n", BLE_point);
 			  }
 		  }
 	  }
@@ -306,8 +393,8 @@ void Motor_Mode(int x)
 			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
 			  break;
 		  case 1:		// Forward
-			  htim1.Instance->CCR1 = 1100;
-			  htim1.Instance->CCR3 = 1100;
+			  htim1.Instance->CCR1 = 2100;
+			  htim1.Instance->CCR3 = 2100;
 
 			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
 			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 0);
@@ -315,16 +402,16 @@ void Motor_Mode(int x)
 			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
 			  break;
 		  case 2:		// Backward
-			  htim1.Instance->CCR1 = 1100;
-			  htim1.Instance->CCR3 = 1100;
+			  htim1.Instance->CCR1 = 2100;
+			  htim1.Instance->CCR3 = 2100;
 			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 0);
 			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 1);
 			  HAL_GPIO_WritePin(IN3_GPIO_Port, IN3_Pin, 0);
 			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
 			  break;
 		  case 3:		// Slow Right
-			  htim1.Instance->CCR1 = 1300;		//ENA
-			  htim1.Instance->CCR3 = 1100;		//ENB
+			  htim1.Instance->CCR1 = 2300;		//ENA
+			  htim1.Instance->CCR3 = 2100;		//ENB
 
 			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
 			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 0);
@@ -332,8 +419,8 @@ void Motor_Mode(int x)
 			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
 			  break;
 		  case 4:		// Quick Right
-			  htim1.Instance->CCR1 = 1200;
-			  htim1.Instance->CCR3 = 1200;
+			  htim1.Instance->CCR1 = 2200;
+			  htim1.Instance->CCR3 = 2200;
 
 			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
 			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 0);
@@ -341,8 +428,8 @@ void Motor_Mode(int x)
 			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 1);
 			  break;
 		  case 5:		// Slow Left
-			  htim1.Instance->CCR1 = 1100;		//ENA
-			  htim1.Instance->CCR3 = 1300;		//ENB
+			  htim1.Instance->CCR1 = 2100;		//ENA
+			  htim1.Instance->CCR3 = 2300;		//ENB
 
 			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 1);
 			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 0);
@@ -350,8 +437,8 @@ void Motor_Mode(int x)
 			  HAL_GPIO_WritePin(IN4_GPIO_Port, IN4_Pin, 0);
 			  break;
 		  case 6:		// Quick Left
-			  htim1.Instance->CCR1 = 1200;
-			  htim1.Instance->CCR3 = 1200;
+			  htim1.Instance->CCR1 = 2200;
+			  htim1.Instance->CCR3 = 2200;
 
 			  HAL_GPIO_WritePin(IN1_GPIO_Port, IN1_Pin, 0);
 			  HAL_GPIO_WritePin(IN2_GPIO_Port, IN2_Pin, 1);
@@ -371,41 +458,323 @@ point2 (37826F) : 2
 pcharge (A7EF18) : 3*/
 //int BLE_point = 0;
 
-/* Map List
-map1 : point1 - corner1 - point2 = 5
-map2 : point1 - corner1 - pcharge = 3
-map3 : point2 - corner1 - point1 = 8
-map4 : point2 - corner1 - pcharge = 4
-map5 : pcharge - corner1 - point1 = 9
-map6 : pcharge - corner1 - point2 = 7*/
-int map_select = 0;
-int map_set = 0;
-
 // Car Driving complete
 int move_comp = 0;
 
 // Drive Mode Set
-int Move_mode = 0;
+/*0 : straight, 1 : left, 2 : right, 3 : back*/
+//int Move_mode = 0
+int straight_param = 0;
+int obstacle_state = 0;	// right : + 1, left : -1
+int left_param = 0;
+int right_param = 0;
+int desti_param = 0;
 
+// Ultrasonic
+double FF_dist = 0, FR_dist = 0, FL_dist = 0, BB_dist = 0;
+
+/*0 : standby, 1 : Passnger, 2 : Drive, 3 : Watchdog, 4 : Destination, 5 : Charge*/
+// drive_set
+int RL_cnt = 0;
 void driving_mode()
 {
 	switch(drive_set)
 	{
 	case 0 :	// Standby
-		move_comp = 0;
+		Motor_Mode(0);	// STOP
+		Mcntr = 0;		// Stop
+		Move_mode = 0;
+		move_comp = 0;	// initialize
+		osDelay(10);
 		break;
 	case 1 :	// Passenger
-
+		Motor_Mode(0);	// STOP
+		Mcntr = 0;		// Stop
+		osDelay(10);
+		//if(map_set)	drive_set = 2;
 		break;
 	case 2 :	// Drive
+		switch(Move_mode)
+		{
+		case 0 :	// straight
+//			RL_cnt = 0;
+//			Motor_Mode(1);	// forward
+//			Mcntr = 1;
+//			Read_Z_Angle(&MAX_D);
+//			osDelay(10);
+			if(FF_dist < 400)
+			{
+				Motor_Mode(0);	// STOP
+				Mcntr = 0;
+				osDelay(400);
+			}
+			else
+			{
+				RL_cnt = 0;
+				Motor_Mode(1);	// forward
+				Mcntr = 1;
+				Read_Z_Angle(&MAX_D);
+				osDelay(10);
+			}
+//			if((FF_dist < 400) && (straight_param == 0))
+//			{
+//				Motor_Mode(0);	// STOP
+//				Mcntr = 0;		// Stop
+//				osDelay(400);
+//				straight_param = 1;
+//			}
+//			else if(straight_param == 1)
+//			{
+//				if(FL_dist < FR_dist)
+//				{
+//					Read_Z_Angle(&MAX_D);
+//					Motor_Mode(4);	// Quick Right
+//					Mcntr = 4;
+//					osDelay(1);
+//					if(MAX_D > 90)
+//					{
+//						Motor_Mode(0);	// STOP
+//						Mcntr = 0;
+//						osDelay(400);
+//						obstacle_state++;
+//						straight_param = 2;
+//					}
+//				}
+//				else if(FL_dist > FR_dist)
+//				{
+//					Read_Z_Angle(&MAX_D);
+//					Motor_Mode(6);	// Quick left
+//					Mcntr = 6;
+//					osDelay(1);
+//					if(MAX_D < -90)
+//					{
+//						Motor_Mode(0);	// STOP
+//						Mcntr = 0;
+//						osDelay(400);
+//						obstacle_state--;
+//						straight_param = 2;
+//					}
+//				}
+//			}
+//			else if(straight_param == 2)
+//			{
+//				if((FL_dist > 1000) && (obstacle_state > 0))
+//				{
+//					Read_Z_Angle(&MAX_D);
+//					Motor_Mode(6);	// Quick left
+//					Mcntr = 6;
+//					osDelay(1);
+//					if(MAX_D < -90)
+//					{
+//						Motor_Mode(0);	// STOP
+//						Mcntr = 0;
+//						osDelay(400);
+//						obstacle_state--;
+//						straight_param = 0;
+//					}
+//				}
+//				else if((FR_dist > 1000) && (obstacle_state < 0))
+//				{
+//					Read_Z_Angle(&MAX_D);
+//					Motor_Mode(4);	// Quick Right
+//					Mcntr = 4;
+//					osDelay(1);
+//					if(MAX_D > 90)
+//					{
+//						Motor_Mode(0);	// STOP
+//						Mcntr = 0;
+//						osDelay(400);
+//						obstacle_state++;
+//						straight_param = 0;
+//					}
+//				}
+//				else if(FF_dist < 400)
+//				{
+//					Move_mode = 3;	// back
+//					osDelay(1);
+//				}
+//				else
+//				{
+//					Motor_Mode(1);	// forward
+//					Mcntr = 1;
+//					osDelay(10);
+//				}
+//			}
+			break;
+		case 1 :	// left
+			if(RL_cnt == 0)
+			{
+				if(left_param == 0)
+				{
+					Motor_Mode(1);	// forward
+					Mcntr = 1;
+					osDelay(10);
+					if(FL_dist > 1000)
+					{
+						Motor_Mode(0);	// STOP
+						Mcntr = 0;
+						osDelay(390);
+						Read_Z_Angle(&MAX_D);
+						osDelay(10);
+						left_param = 1;
+					}
+				}
+				else if(left_param == 1)
+				{
+					Read_Z_Angle(&MAX_D);
+					Motor_Mode(6);	// Quick Left
+					Mcntr = 6;
+					osDelay(1);
+					if(MAX_D < -90)
+					{
+						Motor_Mode(0);	// STOP
+						Mcntr = 0;
+						osDelay(400);
+						left_param = 2;
+					}
+				}
+				else if(left_param == 2)
+				{
+					Motor_Mode(1);	// forward
+					Mcntr = 1;
+					RL_cnt = 1;
+					osDelay(100);
+					left_param = 0;
+					Move_mode = 0;
+				}
+			}
+			else
+			{
+			Motor_Mode(1);	// forward
+			Mcntr = 1;
+			osDelay(10);
+			}
+			break;
+		case 2 :	// right
+			if(RL_cnt = 0)
+			{
+				if(right_param == 0)
+				{
+					Motor_Mode(1);	// forward
+					Mcntr = 1;
+					osDelay(10);
+					if(FR_dist > 1000)
+					{
+						Motor_Mode(0);	// STOP
+						Mcntr = 0;
+						osDelay(390);
+						Read_Z_Angle(&MAX_D);
+						osDelay(10);
+						right_param = 1;
+					}
+				}
+				else if(right_param == 1)
+				{
+					Read_Z_Angle(&MAX_D);
+					Motor_Mode(4);	// Quick right
+					Mcntr = 4;
+					osDelay(1);
+					if(MAX_D > 90)
+					{
+						Motor_Mode(0);	// STOP
+						Mcntr = 0;
+						osDelay(400);
+						right_param = 2;
+					}
+				}
+				else if(right_param == 2)
+				{
+					Motor_Mode(1);	// forward
+					Mcntr = 1;
+					osDelay(100);
+					right_param = 0;
+					Move_mode = 0;
+				}
+			}
+			else
+			{
+				Motor_Mode(1);	// forward
+				Mcntr = 1;
+				osDelay(10);
+			}
+			break;
+		case 3 :	// back
+			if((FR_dist > 1000) && (FL_dist > 1000))
+			{
+				Motor_Mode(0);	// STOP
+				Mcntr = 0;
+				osDelay(400);
+				Move_mode = 0;
+			}
+			else if(BB_dist < 400)
+			{
+				Motor_Mode(0);	// STOP
+				Mcntr = 0;
+				osDelay(400);
+			}
+			else
+			{
+				Motor_Mode(2);	// backward
+				Mcntr = 2;
+				osDelay(20);
+			}
+			break;
+		}
 
 		break;
 	case 3 :	// Watchdog
+		Motor_Mode(0);	// STOP
+		Mcntr = 0;		// Stop
+		osDelay(10);
 		break;
 	case 4 :	//Destination
-		move_comp = 1;
+		if(desti_param == 0)
+		{
+			Motor_Mode(1);	// forward
+			Mcntr = 1;
+			osDelay(1);
+			if(FF_dist < 600)
+			{
+				Motor_Mode(0);	// STOP
+				Mcntr = 0;
+				osDelay(390);
+				Read_Z_Angle(&MAX_D);
+				osDelay(10);
+				desti_param = 1;
+			}
+		}
+		else if(desti_param == 1)
+		{
+			Read_Z_Angle(&MAX_D);
+			Motor_Mode(6);	// Quick Left
+			Mcntr = 6;
+			osDelay(1);
+			if(MAX_D < -179)
+			{
+				Motor_Mode(0);	// STOP
+				Mcntr = 0;
+				osDelay(400);
+				desti_param = 2;
+			}
+		}
+		else if(desti_param == 2)
+		{
+			Motor_Mode(2);	// backward
+			Mcntr = 2;
+			osDelay(1);
+			if(BB_dist < 400)
+			{
+				Motor_Mode(0);	// STOP
+				Mcntr = 0;
+				osDelay(400);
+				desti_param = 0;
+				drive_set = 0;
+				move_comp = 1;
+			}
+		}
 		break;
 	case 5 :	// Charging Station
+
 		break;
 	}
 }
@@ -421,66 +790,57 @@ void MAP_LOAD()
 			int map_ch = BLE_point + ESP_send;
 			switch(map_ch)
 			{
-			case 3 :
+			case 5 :
 				map_select = 2;
 				map_set = 1;
 				break;
-			case 4 :
+			case 6 :
 				map_select = 4;
 				map_set = 1;
 				break;
-			case 5 :
+			case 7 :
 				map_select = 1;
 				map_set = 1;
 				break;
-			case 7 :
+			case 9 :
 				map_select = 6;
 				map_set = 1;
 				break;
-			case 8 :
+			case 10 :
 				map_select = 3;
 				map_set = 1;
 				break;
-			case 9 :
+			case 11 :
 				map_select = 5;
 				map_set = 1;
 				break;
 			default :
 				map_select = 0;
+				map_set = 0;
 				break;
 			}
 		}
-		else if(map_set)
-		{
-			if(move_comp)
-			{
-				// initialize
-				slave_state = 0;
-				BLE_point = 0;
-				drive_set = 0;
-				ESP_send = 0;
-				map_set = 0;
-			}
-			else			map_set = 1;
-		}
+	}
+	else if(drive_set == 0)
+	{
+		slave_state = 0;
+		BLE_point = 0;
+		ESP_send = 0;
+		map_select = 0;
+		map_set = 0;
 	}
 }
 
-int btn = 0;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch(GPIO_Pin) {
 	case GPIO_PIN_13:
-
-		btn = 1;
-		drive_set = 1;
-//		if(Mcntr > 6)	Mcntr = 0;
-//		else			Mcntr++;
+		drive_set = 2;
+		map_select = 1;
 		break;
   }
 }
 
-double FF_dist = 0, FR_dist = 0, FL_dist = 0, BB_dist = 0;
 int fF_t1 = 0, fF_t2 = 0;
 int fR_t1 = 0, fR_t2 = 0;
 int fL_t1 = 0, fL_t2 = 0;
@@ -638,20 +998,52 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
   }
 }
 
-//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-//{
-//	if (htim->Instance == TIM5) {
-//		// Timer5 interrupt : 1 sec Period
-//		HAL_UART_Transmit(&huart1, "AT+INQ\r\n", 8, 10);
-//	}
-////	else if (htim->Instance == TIM3) {
-////	        // Timer3 interrupt	0.06 sec Period
-////		Voltage_state();
-////	}
-//}
+// Voltage Sensor
+unsigned int val;			 // Voltage Sensor ADC
+unsigned int volt[100];
+unsigned int voltage_i = 0;
+unsigned int voltage_en = 0;
+float voltage = 0.0;         // Current Voltage
+float voltage_L = 12.4;		 // Lower Voltage
+#define min_voltage 9.00
+#define max_voltage 12.40
+#define voltage_param (max_voltage - min_voltage)
 
-// Gyro Max Value
-double MAX_D = 0;
+void Voltage_state()
+{
+	unsigned int avolt = 0;	     // Average
+	volt[voltage_i++] = val;
+	//printf("voltage_i : %d \r\n", voltage_i);
+	if(voltage_i >= 100) {
+		voltage_i = 0;
+		voltage_en = 1;
+	}
+	if(voltage_en) {
+		for(int i = 0; i < 100; i++)
+		{
+		  avolt += volt[i];
+		  //printf("Current ADC Value(val) : %d \r\n", volt[i]);
+		}
+		voltage = avolt * 5 * 3.3 / 409500; // 평균 (avolt / 100) * Resolution (3.3 / 4095) * 분배비 5
+		if(voltage < voltage_L)
+		{
+		  voltage_L = voltage;
+		  float curr_volt = (1 - ((max_voltage - voltage_L) / voltage_param)) * 100;
+
+		  /*debug*/
+//		  unsigned char vtest_buf1[50];
+//		  sprintf(vtest_buf1, "V:%.2f\r\n", voltage_L);
+//		  printe(vtest_buf1);
+//		  printf("Average ADC Volt : %.3f \r\n", voltage_L);
+//
+//		  unsigned char vtest_buf2[50];
+//		  sprintf(vtest_buf2, "B:%d\r\n", (int)curr_volt);
+//		  printe(vtest_buf2);
+//		  printf("배터리 충전 상태 : %d % \r\n", (int)curr_volt);
+		}
+		voltage_en = 0;
+	}
+}
 
 /* USER CODE END 0 */
 
@@ -683,6 +1075,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM1_Init();
   MX_TIM3_Init();
@@ -690,6 +1083,7 @@ int main(void)
   MX_I2C1_Init();
   MX_USART6_UART_Init();
   MX_USART1_UART_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -716,7 +1110,7 @@ int main(void)
   Task1Handle = osThreadCreate(osThread(Task1), NULL);
 
   /* definition and creation of Task2 */
-  osThreadDef(Task2, StartTask02, osPriorityHigh, 0, 512);
+  osThreadDef(Task2, StartTask02, osPriorityHigh, 0, 1024);
   Task2Handle = osThreadCreate(osThread(Task2), NULL);
 
   /* definition and creation of Task03 */
@@ -740,6 +1134,9 @@ int main(void)
 	UART_Start_Receive_IT(&huart2, &dum2, 1);	// Putty
 	UART_Start_Receive_IT(&huart6, &dum1, 1);	// ESP8266
 	HAL_TIM_Base_Start_IT(&htim5);				// bluetooth AT Command Interrupt
+	HAL_TIM_OC_Start(&htim5, TIM_CHANNEL_1);	// Voltage Sensor ADC Trigger
+	HAL_ADC_Start_DMA(&hadc1, &val, 1);
+	HAL_TIM_Base_Start_IT(&htim3);				// Voltage_state Operation
 
   /* USER CODE END RTOS_THREADS */
 
@@ -805,6 +1202,59 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+
+  /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc1.Init.ScanConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfDiscConversion = 1;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T5_CC1;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_0;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
   * @brief I2C1 Initialization Function
   * @param None
   * @retval None
@@ -859,9 +1309,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 21-1;
+  htim1.Init.Prescaler = 16-1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 4000-1;
+  htim1.Init.Period = 7500-1;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
@@ -1001,12 +1451,13 @@ static void MX_TIM5_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM5_Init 1 */
 
   /* USER CODE END TIM5_Init 1 */
   htim5.Instance = TIM5;
-  htim5.Init.Prescaler = 8400-1;
+  htim5.Init.Prescaler = 4200-1;
   htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim5.Init.Period = 10000-1;
   htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -1020,9 +1471,21 @@ static void MX_TIM5_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
+  sConfigOC.Pulse = 5000-1;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_OC_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1132,6 +1595,22 @@ static void MX_USART6_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -1220,41 +1699,19 @@ void StartTask1(void const * argument)
 		lastMotorMode = Mcntr;
 		Motor_Mode(lastMotorMode);
 	  }
-	  // Move Mode about Ultrasonic
-//	  if((FF_dist < 100) && (FR_dist < 100) && (FL_dist < 100))
-//	  {
-//		  Mcntr = 2;
-//	  }
-//	  else if((FF_dist < 100) && (FR_dist < 100))
-//	  {
-//		  Mcntr = 6;
-//	  }
-//	  else if((FF_dist < 100) && (FL_dist < 100))
-//	  {
-//		  Mcntr = 4;
-//	  }
-//	  else if(FF_dist < 100)
-//	  {
-//		  Mcntr = 0;
-//	  }
-//	  else if(FR_dist < 100)
-//	  {
-//		  Mcntr = 5;
-//	  }
-//	  else if(FL_dist < 100)
-//	  {
-//		  Mcntr = 3;
-//	  }
-//	  else
-//	  {
-//		  Mcntr = 1;
-//	  }
+
+	  driving_mode();
+	  //MAP_operation();
+	  //printf("z:%d,dp:%d,ds:%d,Mm:%d\r\n",MAX_D, desti_param, drive_set, Move_mode);
+	  unsigned char testbuf2[50];
+	  sprintf(testbuf2,"z:%d,dp:%d,ds:%d,Mm:%d                     \r\n",MAX_D, desti_param, drive_set, Move_mode);
+	  printe(testbuf2);
 
 	  /* Debug */
 	  //printf("%d\r\n",Mcntr);
-	  unsigned char testbuf2[50];
-	  sprintf(testbuf2,"F:%d,R:%d,L:%d,B:%d                   \r\n",(int)FF_dist, (int)FR_dist, (int)FL_dist, (int)BB_dist);
-	  printe(testbuf2);
+//	  unsigned char testbuf2[50];
+//	  sprintf(testbuf2,"F:%d,R:%d,L:%d,B:%d                   \r\n",(int)FF_dist, (int)FR_dist, (int)FL_dist, (int)BB_dist);
+//	  printe(testbuf2);
 	  osDelay(10);
   }
   /* USER CODE END 5 */
@@ -1277,52 +1734,28 @@ void StartTask02(void const * argument)
 	HAL_GPIO_WritePin(FFtrig_GPIO_Port, FFtrig_Pin, GPIO_PIN_SET);  // FFtrig HIGH
 	osDelay(1);  // 1ms High
 	HAL_GPIO_WritePin(FFtrig_GPIO_Port, FFtrig_Pin, GPIO_PIN_RESET);  // FFtrig LOW
-	if(FF_dist < 400)
-	{
-		Mcntr = 0;
-		Motor_Mode(0);	// STOP
-		osDelay(10);
-	}
-	else if(FL_dist > 1000)
-	{
-		Motor_Mode(0);
-		osDelay(500);
-		while(MAX_D > -90)
-		{
-			//printf("====%.2f====\r\n", MAX_D);
-			Read_Z_Angle(&MAX_D);
-			Mcntr = 6;
-			//Motor_Mode(6);	// Quick Left
-			osDelay(10);
-		}
-		Mcntr = 1;
-		osDelay(800);
-	}
-	else
-	{
-		if(btn)
-		{
-			Mcntr = 1;
-		}
-	}
+	//driving_mode();
 	osDelay(100);  // Calculation Delay
 
 	// 2. FRtrig
 	HAL_GPIO_WritePin(FRtrig_GPIO_Port, FRtrig_Pin, GPIO_PIN_SET);  // FFtrig HIGH
 	osDelay(1);  // 1ms High
 	HAL_GPIO_WritePin(FRtrig_GPIO_Port, FRtrig_Pin, GPIO_PIN_RESET);  // FFtrig LOW
+	//driving_mode();
 	osDelay(100);  // Calculation Delay
 
 	// 3. FLtrig
 	HAL_GPIO_WritePin(FLtrig_GPIO_Port, FLtrig_Pin, GPIO_PIN_SET);  // FFtrig HIGH
 	osDelay(1);  // 1ms High
 	HAL_GPIO_WritePin(FLtrig_GPIO_Port, FLtrig_Pin, GPIO_PIN_RESET);  // FFtrig LOW
+	//driving_mode();
 	osDelay(100);  // Calculation Delay
 
 	// 4. BBtrig
 	HAL_GPIO_WritePin(BBtrig_GPIO_Port, BBtrig_Pin, GPIO_PIN_SET);  // FFtrig HIGH
 	osDelay(1);  // 1ms High
 	HAL_GPIO_WritePin(BBtrig_GPIO_Port, BBtrig_Pin, GPIO_PIN_RESET);  // FFtrig LOW
+	//driving_mode();
 	osDelay(100);  // Calculation Delay
   }
   /* USER CODE END StartTask02 */
@@ -1341,29 +1774,17 @@ void StartTask03(void const * argument)
   /* Infinite loop */
   for(;;)
   {
+	Read_Z_Angle(&MAX_D);
+	osDelay(1000);
 	  // ESP Set
-	if(!esp_set)
-	{
-		HAL_UART_Transmit(&huart6, "AT+CWMODE=1", 11, 10);            // 1: CLIENT MODE, 2: SERVER MODE, 3: Multi mode
-		HAL_UART_Transmit(&huart6, "\r\n", 2, 10);
-		osDelay(10);
-		osDelay(3000);
-	}
-	else if(WIFI_connect && (esp_set == 1))
-	{
-		HAL_UART_Transmit(&huart6, "AT+CWJAP=\"P", 11, 10);
-		HAL_UART_Transmit(&huart6, "rocessor2.4", 11, 10);
-		HAL_UART_Transmit(&huart6, "G\",\"Process", 11, 10);
-		HAL_UART_Transmit(&huart6, "or1234\"\r\n", 9, 10);      // SERVER Connect
-		osDelay(2000);
-	}
-	else if(esp_set == 2)
+
+	if(esp_set == 0)
 	{
 		HAL_UART_Transmit(&huart6, "AT+CIPMUX=1", 11, 10);            // 0: single connection mode, 1: multi connection mode
 		HAL_UART_Transmit(&huart6, "\r\n", 2, 10);
 		osDelay(3000);
 	}
-	else if(TCP_connect && (esp_set == 3))
+	else if(TCP_connect && (esp_set == 1))
 	{
 		//HARMAN TCP SERVER CONNECT
 		HAL_UART_Transmit(&huart6, "AT+CIPSTART", 11, 10);
@@ -1372,7 +1793,7 @@ void StartTask03(void const * argument)
 		HAL_UART_Transmit(&huart6, "\",3000\r\n", 8, 10);      // SERVER Connect
 		osDelay(2000);
 	}
-	osDelay(100);
+	osDelay(1);
   }
   /* USER CODE END StartTask03 */
 }
@@ -1390,12 +1811,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 	if (htim->Instance == TIM5) {
 			// Timer5 interrupt : 1 sec Period
-			HAL_UART_Transmit(&huart1, "AT+INQ\r\n", 8, 10);
+		if(drive_set != 0) HAL_UART_Transmit(&huart1, "AT+INQ\r\n", 8, 10);
+		//else				Voltage_state();
 		}
-	//	else if (htim->Instance == TIM3) {
-	//	        // Timer3 interrupt	0.06 sec Period
-	//		Voltage_state();
-	//	}
+	else if (htim->Instance == TIM3) {
+			// Timer3 interrupt	0.06 sec Period
+		if(drive_set == 0)	Voltage_state();
+	}
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM10) {
     HAL_IncTick();

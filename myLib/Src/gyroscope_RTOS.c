@@ -39,8 +39,10 @@ void Gyro_ModuleSet()
 unsigned char gy_z[2];
 double pre_gZ = 0, total_gZ = 0;
 int before = 0;
-double max_degree = 0;
-void Read_Z_Angle(double* max)
+
+//double max_degree = 0;
+int max_degree = 0;
+void Read_Z_Angle(/*double* max*/ int* max)
 {
 
 	HAL_I2C_Mem_Read(hi2c, Gyro_addr, 0x47, 1, gy_z, 2, 1000);
@@ -83,7 +85,7 @@ void Read_Z_Angle(double* max)
 			before = HAL_GetTick();
 		}
 
-		if(fabs(max_degree) < fabs(total_gZ))	max_degree = total_gZ;
+		if(fabs(max_degree) < fabs((int)total_gZ))	max_degree = (int)total_gZ;
 
 		*max = max_degree;
 	}
