@@ -16,6 +16,21 @@ var server = net.createServer((socket) => { // TCP 서버를 만든다.
     // 벨트 & 압력 확인 변수
     var hall = 1, force = 1, Emergency_hf = 0, Emergency_hb = 0;
 
+    // 출발지 & 목적지
+    const originLocations = new Map([
+        [1000, 'C'],
+        [1100, 'D'],
+        [1200, 'A'],
+        [1300, 'B']
+    ]);
+    const destinationLocations = new Map([
+        [2000, 'C'],
+        [2100, 'D'],
+        [2200, 'A'],
+        [2300, 'B']
+    ]);
+    var origin = null, destination = null;
+
     // 새로 연결된 클라이언트를 clients 배열에 추가
     clients.push(socket);
     clients.forEach(client => {
@@ -54,6 +69,32 @@ var server = net.createServer((socket) => { // TCP 서버를 만든다.
                             console.log('출발지 (WC -> SERVER -> APP):', message);
                         }
                     });
+                    let originCode = parseInt(message.slice(0, 4)); // 메시지에서 출발지 코드 추출
+                    origin = startLocations.get(originCode) || 'Unknown'; // 맵에서 출발지 찾기
+
+                    if(!origin && !destination) {
+                        if (!graph.nodes.has(start) || !graph.nodes.has(end)) {
+                            socket.write(`잘못된 노드 입력: ${start}, ${end}\r\n`);
+                        }
+                        else {
+                            let result = graph.dijkstra(start, end);
+                            socket.write(`최단 거리: ${result.distance}, 경로: ${result.path.join(' -> ')}, 방향향: ${result.directions.join(' -> ')}\r\n`);
+                        }
+                    }
+                }
+        
+                // Destination 처리
+                while (socket.clientState.buffer.startsWith('2') && socket.clientState.buffer.length >= 6) {
+                    let message = socket.clientState.buffer.slice(0, 6);
+                    socket.clientState.buffer = socket.clientState.buffer.slice(6); // 나머지 버퍼 갱신
+                    clients.forEach(client => {
+                        if (client.clientState.type === 'LCD' || client.clientState.type === 'APP') {
+                            client.write(message);
+                            console.log('목적지 (WC -> SERVER -> APP, LCD):', message);
+                        }
+                    });
+                    let destinationCode = parseInt(message.slice(0, 4));
+                    destination = destinationLocations.get(destinationCode) || 'Unknown';
                 }
         
                 // Arrive at Destination 처리
@@ -66,6 +107,8 @@ var server = net.createServer((socket) => { // TCP 서버를 만든다.
                             console.log('목적지 도착 (WC -> SERVER -> APP, LCD):', message);
                         }
                     });
+                    origin = null;
+                    destination = null;
                 }
         
                 // Voltage Sensor 처리
@@ -89,9 +132,11 @@ var server = net.createServer((socket) => { // TCP 서버를 만든다.
                     clients.forEach(client => {
                         if (client.clientState.type === 'WheelChair' || client.clientState.type === 'APP') {
                             client.write(message);
-                            console.log('목적지 (LCD -> SERVER -> WC):', message);
+                            console.log('목적지 (LCD -> SERVER -> APP, WC):', message);
                         }
                     });
+                    let destinationCode = parseInt(message.slice(0, 4));
+                    destination = destinationLocations.get(destinationCode) || 'Unknown';
                 }
         
                 // Hall Sensor 처리

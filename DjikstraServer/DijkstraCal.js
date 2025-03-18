@@ -82,6 +82,12 @@ const result = graph.dijkstra('A', 'D');
 console.log("최단 거리:", result.distance);
 console.log("경로:", result.path.join(" → "));
 console.log("방향:", result.directions.join(" → "));
+//예상 출력
+/*
+최단 거리: 10
+경로: A → C → D
+방향: 직진 → 직진
+*/
 
 // 서버에서 사용할 코드
 /*
