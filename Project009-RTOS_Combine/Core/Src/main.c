@@ -150,7 +150,7 @@ void MAP_operation()
 		}
 		break;
 	case 2 :	// 8E4591 - 15DA51 - A7EF18
-		if(drive_set == 2)
+		if((drive_set == 2) || (drive_set == 5))
 		{
 			if(BLE_point == 4)		Move_mode = 0;
 			else if(BLE_point == 3)	drive_set = 4;
@@ -164,7 +164,7 @@ void MAP_operation()
 		}
 		break;
 	case 4 :	// 37826F - 15DA51 - A7EF18
-		if(drive_set == 2)
+		if((drive_set == 2) || (drive_set == 5))
 		{
 			if(BLE_point == 4)		Move_mode = 1;
 			else if(BLE_point == 3)	drive_set = 4;
@@ -188,6 +188,9 @@ void MAP_operation()
 		break;
 	}
 }
+
+int safe_st = 0;
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
    if(huart == &huart6)
@@ -224,45 +227,86 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 				case '0':	// Emergency & Normal State Set
 				   //buf1[10] 0 : emergency, 1 : Force OK, 2 : Heart Rate OK, 3 : Total OK
 					unsigned char ESP_words0 = buf1[10];
-					if(drive_set == 2)	// Driveing Mode
+					switch(drive_set)
 					{
-						if(ESP_words0 == '0')	drive_set = 3;	//	Watchdog
-						else					drive_set = 2;
-					}
-					else if(drive_set == 0) // Standby Mode
-					{
+					case 0 :
 						if(ESP_words0 == '1')	drive_set = 1;	// Passenger
 						else					drive_set = 0;
-					}
-					else if(drive_set == 1)	// Passenger Mode
-					{
-						if((ESP_words0 == '3') && map_set)	drive_set = 2;
-						else								drive_set = 1;
-					}
-					else if(drive_set == 3)	// Watchdog Mode
-					{
+						break;
+					case 1 :
+						if(ESP_words0 == '3')	safe_st = 1;
+						else					drive_set = 1;
+						break;
+					case 2 :
+						if(ESP_words0 == '0')	drive_set = 3;	//	Watchdog
+						else					drive_set = 2;
+						break;
+					case 3 :
 						if(ESP_words0 == '3')	drive_set = 2;
 						else					drive_set = 3;
+						break;
 					}
+//					if(drive_set == 2)	// Driveing Mode
+//					{
+//						if(ESP_words0 == '0')	drive_set = 3;	//	Watchdog
+//						else					drive_set = 2;
+//					}
+//					else if(drive_set == 0) // Standby Mode
+//					{
+//						if(ESP_words0 == '1')	drive_set = 1;	// Passenger
+//						else					drive_set = 0;
+//					}
+//					else if(drive_set == 1)	// Passenger Mode
+//					{
+//						if(ESP_words0 == '3')	safe_st = 1;
+//						else					drive_set = 1;
+//					}
+//					else if(drive_set == 3)	// Watchdog Mode
+//					{
+//						if(ESP_words0 == '3')	drive_set = 2;
+//						else					drive_set = 3;
+//					}
 					break;
-				case '1':	// Origin is xxx (Not use in Server)
-				   // Origin is xxx
-				   break;
+//				case '1':	// Origin is xxx (Not use in Server)
+//				   // Origin is xxx
+//				   break;
 				case '2':	// Destination Set
 					unsigned char ESP_words1 = buf1[10];
 					if(drive_set == 1)
 					{
-						if(ESP_words0 == '8')		ESP_send = 8;
-						else if(ESP_words0 == '6')	ESP_send = 6;
-						else if(ESP_words0 == '4')	ESP_send = 4;
+						if(ESP_words1 == '1')		ESP_send = 8;
+						else if(ESP_words1 == '2')	ESP_send = 6;
+						else if(ESP_words1 == '3')	ESP_send = 4;
 					}
 				   break;
 //				case '3':	// Arrive at Destination (Not use in Server)
 //				   break;
 //				case '4':	// Hall Sensor
 //				   break;
-//				case '5':	// Force Sensor
-//				   break;
+				case '5':	// Force Sensor
+					unsigned char ESP_words2 = buf1[10];
+					switch(drive_set)
+					{
+					case 0 :
+						if(ESP_words2 == '1')	drive_set = 1;
+						else					drive_set = 0;
+						break;
+					case 1 :
+						if(ESP_words2 == '0')	drive_set = 0;
+						else					drive_set = 1;
+						break;
+					}
+//					if(drive_set == 0)	// standby Mode
+//					{
+//						if(ESP_words2 == '1')	drive_set = 1;
+//						else					drive_set = 0;
+//					}
+//					else if(drive_set == 1)	// Passenger Mode
+//					{
+//						if(ESP_words2 == '0')	drive_set = 0;
+//						else					drive_set = 1;
+//					}
+				   break;
 //				case '6':	// Heart Beat Sensor
 //				   break;
 //				case '7':	// Voltage Sensor (Not use in Server)
@@ -344,6 +388,38 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
    }
 }
 
+int server_con = 0;
+int send_fin = 0;
+
+void SEND_INFO()
+{
+	if((drive_set == 1) && (!send_fin) && (ESP_send != 0))
+	{
+		switch(BLE_point)
+		{
+		case 1 :
+			send_fin = 1;
+			printe("1100");
+			break;
+		case 2 :
+			send_fin = 1;
+			printe("1200");
+			break;
+		case 3 :
+			send_fin = 1;
+			printe("1300");
+			break;
+		default :
+			break;
+		}
+	}
+	else if((drive_set == 4) && (send_fin))
+	{
+		send_fin = 0;
+		printe("3000");
+	}
+}
+
 int printe(unsigned char* str) {
    if((HAL_GetTick() - last_printe) < 400) {
       return 0;
@@ -367,6 +443,7 @@ int printe(unsigned char* str) {
          int n = str_len / 11;
          int i = 0;
          //printf("loading..................................\r\n");
+         osDelay(500);
          for(i = 0; i < n; i++) {
             HAL_UART_Transmit(&huart6, temp_str + (i * 11), 11, 10);
          }
@@ -476,6 +553,7 @@ double FF_dist = 0, FR_dist = 0, FL_dist = 0, BB_dist = 0;
 /*0 : standby, 1 : Passnger, 2 : Drive, 3 : Watchdog, 4 : Destination, 5 : Charge*/
 // drive_set
 int RL_cnt = 0;
+int ST_cnt = 0;
 void driving_mode()
 {
 	switch(drive_set)
@@ -484,147 +562,161 @@ void driving_mode()
 		Motor_Mode(0);	// STOP
 		Mcntr = 0;		// Stop
 		Move_mode = 0;
+		left_param = 0;
+		right_param = 0;
+		desti_param = 0;
+		RL_cnt = 0;
+		ST_cnt = 0;
 		move_comp = 0;	// initialize
+		safe_st = 0;
+		slave_state = 0;
+		BLE_point = 0;
+		ESP_send = 0;
+		map_select = 0;
+		map_set = 0;
 		osDelay(10);
 		break;
 	case 1 :	// Passenger
 		Motor_Mode(0);	// STOP
 		Mcntr = 0;		// Stop
 		osDelay(10);
-		//if(map_set)	drive_set = 2;
 		break;
 	case 2 :	// Drive
 		switch(Move_mode)
 		{
 		case 0 :	// straight
-//			RL_cnt = 0;
-//			Motor_Mode(1);	// forward
-//			Mcntr = 1;
-//			Read_Z_Angle(&MAX_D);
-//			osDelay(10);
-			if(FF_dist < 400)
+			switch(ST_cnt)
 			{
-				Motor_Mode(0);	// STOP
-				Mcntr = 0;
-				osDelay(400);
+			case 0 :
+				if((FF_dist < 400) && (FL_dist < 400) && (FR_dist < 400))
+				{
+					//printe("=1=               \r\n");
+					Mcntr = 0;
+					osDelay(400);
+					//Move_mode = 3;	// back
+				}
+				else if((FF_dist < 600) && (FR_dist > 1000) && (FL_dist > 1000))
+				{
+					//printe("=2=               \r\n");
+					Mcntr = 0;
+					osDelay(400);
+					ST_cnt = 1;
+				}
+				else if((FF_dist < 600) && ((FR_dist > 1000) || (FL_dist > 1000)))
+				{
+					//printe("=3=               \r\n");
+					Mcntr = 0;
+					osDelay(400);
+					ST_cnt = 1;
+				}
+				if(FF_dist < 400)
+				{
+					Mcntr = 0;
+					osDelay(400);
+				}
+				else
+				{
+					// Debug
+					//RL_cnt = 0;
+					//ST_cnt = 0;
+					Mcntr = 1;
+					osDelay(10);
+				}
+				break;
+			case 1 :
+				if((FF_dist < 600) && (FR_dist > 1000) && (FL_dist > 1000))
+				{
+					switch(straight_param)
+					{
+					case 0 :
+						if(obstacle_state < 0)
+						{
+							//printe("=4=               \r\n");
+							Mcntr = 4;				// Quick Right
+							obstacle_state++;		// right turn 1
+							straight_param = 1;
+						}
+						else
+						{
+							//printe("=5=               \r\n");
+							Mcntr = 6;				// Quick Left
+							obstacle_state--;		// left turn 1
+							straight_param = 1;
+						}
+						osDelay(10);
+						break;
+					case 1 :
+						if((MAX_D < -90) || (MAX_D > 90))
+						{
+							//printe("=6=               \r\n");
+							Mcntr = 0;
+							osDelay(400);
+							straight_param = 0;
+							ST_cnt = 0;
+						}
+						osDelay(10);
+						break;
+					}
+				}
+				else if((FF_dist < 600) && ((FR_dist > 1000) || (FL_dist > 1000)))
+				{
+					switch(straight_param)
+					{
+					case 0 :
+						if(FR_dist > FL_dist)
+						{
+							//printe("=7=               \r\n");
+							Mcntr = 4;				// Quick Right
+							obstacle_state++;		// right turn 1
+							straight_param = 1;
+						}
+						else
+						{
+							//printe("=8=               \r\n");
+							Mcntr = 6;				// Quick Left
+							obstacle_state--;		// left turn 1
+							straight_param = 1;
+						}
+						osDelay(10);
+						break;
+					case 1 :
+						if((MAX_D < -90) || (MAX_D > 90))
+						{
+							//printe("=9=               \r\n");
+							Mcntr = 0;
+							osDelay(400);
+							straight_param = 0;
+							ST_cnt = 0;
+						}
+						osDelay(10);
+						break;
+					}
+				}
+				break;
 			}
-			else
-			{
-				RL_cnt = 0;
-				Motor_Mode(1);	// forward
-				Mcntr = 1;
-				Read_Z_Angle(&MAX_D);
-				osDelay(10);
-			}
-//			if((FF_dist < 400) && (straight_param == 0))
-//			{
-//				Motor_Mode(0);	// STOP
-//				Mcntr = 0;		// Stop
-//				osDelay(400);
-//				straight_param = 1;
-//			}
-//			else if(straight_param == 1)
-//			{
-//				if(FL_dist < FR_dist)
-//				{
-//					Read_Z_Angle(&MAX_D);
-//					Motor_Mode(4);	// Quick Right
-//					Mcntr = 4;
-//					osDelay(1);
-//					if(MAX_D > 90)
-//					{
-//						Motor_Mode(0);	// STOP
-//						Mcntr = 0;
-//						osDelay(400);
-//						obstacle_state++;
-//						straight_param = 2;
-//					}
-//				}
-//				else if(FL_dist > FR_dist)
-//				{
-//					Read_Z_Angle(&MAX_D);
-//					Motor_Mode(6);	// Quick left
-//					Mcntr = 6;
-//					osDelay(1);
-//					if(MAX_D < -90)
-//					{
-//						Motor_Mode(0);	// STOP
-//						Mcntr = 0;
-//						osDelay(400);
-//						obstacle_state--;
-//						straight_param = 2;
-//					}
-//				}
-//			}
-//			else if(straight_param == 2)
-//			{
-//				if((FL_dist > 1000) && (obstacle_state > 0))
-//				{
-//					Read_Z_Angle(&MAX_D);
-//					Motor_Mode(6);	// Quick left
-//					Mcntr = 6;
-//					osDelay(1);
-//					if(MAX_D < -90)
-//					{
-//						Motor_Mode(0);	// STOP
-//						Mcntr = 0;
-//						osDelay(400);
-//						obstacle_state--;
-//						straight_param = 0;
-//					}
-//				}
-//				else if((FR_dist > 1000) && (obstacle_state < 0))
-//				{
-//					Read_Z_Angle(&MAX_D);
-//					Motor_Mode(4);	// Quick Right
-//					Mcntr = 4;
-//					osDelay(1);
-//					if(MAX_D > 90)
-//					{
-//						Motor_Mode(0);	// STOP
-//						Mcntr = 0;
-//						osDelay(400);
-//						obstacle_state++;
-//						straight_param = 0;
-//					}
-//				}
-//				else if(FF_dist < 400)
-//				{
-//					Move_mode = 3;	// back
-//					osDelay(1);
-//				}
-//				else
-//				{
-//					Motor_Mode(1);	// forward
-//					Mcntr = 1;
-//					osDelay(10);
-//				}
-//			}
 			break;
 		case 1 :	// left
 			if(RL_cnt == 0)
 			{
-				if(left_param == 0)
+				switch(left_param)
 				{
-					Motor_Mode(1);	// forward
+				case 0 :
+					//Motor_Mode(1);	// forward
 					Mcntr = 1;
-					osDelay(10);
 					if(FL_dist > 1000)
 					{
 						Motor_Mode(0);	// STOP
 						Mcntr = 0;
-						osDelay(390);
-						Read_Z_Angle(&MAX_D);
-						osDelay(10);
+						osDelay(400);
+						//Read_Z_Angle(&MAX_D);
 						left_param = 1;
 					}
-				}
-				else if(left_param == 1)
-				{
-					Read_Z_Angle(&MAX_D);
-					Motor_Mode(6);	// Quick Left
+					osDelay(10);
+					break;
+				case 1 :
+					//Read_Z_Angle(&MAX_D);
+					//Motor_Mode(6);	// Quick Left
 					Mcntr = 6;
-					osDelay(1);
 					if(MAX_D < -90)
 					{
 						Motor_Mode(0);	// STOP
@@ -632,48 +724,47 @@ void driving_mode()
 						osDelay(400);
 						left_param = 2;
 					}
-				}
-				else if(left_param == 2)
-				{
-					Motor_Mode(1);	// forward
+					osDelay(10);
+					break;
+				case 2 :
+					//Motor_Mode(1);	// forward
 					Mcntr = 1;
 					RL_cnt = 1;
 					osDelay(100);
 					left_param = 0;
 					Move_mode = 0;
+					break;
 				}
 			}
 			else
 			{
-			Motor_Mode(1);	// forward
+			//Motor_Mode(1);	// forward
 			Mcntr = 1;
 			osDelay(10);
 			}
 			break;
 		case 2 :	// right
-			if(RL_cnt = 0)
+			if(RL_cnt == 0)
 			{
-				if(right_param == 0)
+				switch(right_param)
 				{
-					Motor_Mode(1);	// forward
+				case 0 :
+					//Motor_Mode(1);	// forward
 					Mcntr = 1;
-					osDelay(10);
 					if(FR_dist > 1000)
 					{
 						Motor_Mode(0);	// STOP
 						Mcntr = 0;
-						osDelay(390);
-						Read_Z_Angle(&MAX_D);
-						osDelay(10);
+						osDelay(400);
+						//Read_Z_Angle(&MAX_D);
 						right_param = 1;
 					}
-				}
-				else if(right_param == 1)
-				{
-					Read_Z_Angle(&MAX_D);
-					Motor_Mode(4);	// Quick right
+					osDelay(10);
+					break;
+				case 1 :
+					//Read_Z_Angle(&MAX_D);
+					//Motor_Mode(4);	// Quick right
 					Mcntr = 4;
-					osDelay(1);
 					if(MAX_D > 90)
 					{
 						Motor_Mode(0);	// STOP
@@ -681,19 +772,20 @@ void driving_mode()
 						osDelay(400);
 						right_param = 2;
 					}
-				}
-				else if(right_param == 2)
-				{
-					Motor_Mode(1);	// forward
+					osDelay(10);
+					break;
+				case 2 :
+					//Motor_Mode(1);	// forward
 					Mcntr = 1;
 					osDelay(100);
 					right_param = 0;
 					Move_mode = 0;
+					break;
 				}
 			}
 			else
 			{
-				Motor_Mode(1);	// forward
+				//Motor_Mode(1);	// forward
 				Mcntr = 1;
 				osDelay(10);
 			}
@@ -714,9 +806,9 @@ void driving_mode()
 			}
 			else
 			{
-				Motor_Mode(2);	// backward
+				//Motor_Mode(2);	// backward
 				Mcntr = 2;
-				osDelay(20);
+				osDelay(10);
 			}
 			break;
 		}
@@ -728,27 +820,26 @@ void driving_mode()
 		osDelay(10);
 		break;
 	case 4 :	//Destination
-		if(desti_param == 0)
+		switch(desti_param)
 		{
-			Motor_Mode(1);	// forward
+		case 0 :
+			//Motor_Mode(1);	// forward
 			Mcntr = 1;
-			osDelay(1);
-			if(FF_dist < 600)
+			if(FF_dist < 700)
 			{
 				Motor_Mode(0);	// STOP
 				Mcntr = 0;
-				osDelay(390);
-				Read_Z_Angle(&MAX_D);
-				osDelay(10);
+				osDelay(400);
+				//Read_Z_Angle(&MAX_D);
+				//osDelay(10);
 				desti_param = 1;
 			}
-		}
-		else if(desti_param == 1)
-		{
-			Read_Z_Angle(&MAX_D);
-			Motor_Mode(6);	// Quick Left
+			osDelay(10);
+			break;
+		case 1 :
+			//Read_Z_Angle(&MAX_D);
+			//Motor_Mode(6);	// Quick Left
 			Mcntr = 6;
-			osDelay(1);
 			if(MAX_D < -179)
 			{
 				Motor_Mode(0);	// STOP
@@ -756,12 +847,11 @@ void driving_mode()
 				osDelay(400);
 				desti_param = 2;
 			}
-		}
-		else if(desti_param == 2)
-		{
-			Motor_Mode(2);	// backward
+			osDelay(10);
+			break;
+		case 2 :
+			//Motor_Mode(2);	// backward
 			Mcntr = 2;
-			osDelay(1);
 			if(BB_dist < 400)
 			{
 				Motor_Mode(0);	// STOP
@@ -771,9 +861,240 @@ void driving_mode()
 				drive_set = 0;
 				move_comp = 1;
 			}
+			osDelay(10);
+			break;
 		}
 		break;
 	case 5 :	// Charging Station
+		switch(Move_mode)
+		{
+		case 0 :	// straight
+			switch(ST_cnt)
+			{
+			case 0 :
+				if((FF_dist < 400) && (FL_dist < 400) && (FR_dist < 400))
+				{
+					//printe("=1=               \r\n");
+					Mcntr = 0;
+					osDelay(400);
+					//Move_mode = 3;	// back
+				}
+				else if((FF_dist < 600) && (FR_dist > 1000) && (FL_dist > 1000))
+				{
+					//printe("=2=               \r\n");
+					Mcntr = 0;
+					osDelay(400);
+					ST_cnt = 1;
+				}
+				else if((FF_dist < 600) && ((FR_dist > 1000) || (FL_dist > 1000)))
+				{
+					//printe("=3=               \r\n");
+					Mcntr = 0;
+					osDelay(400);
+					ST_cnt = 1;
+				}
+				if(FF_dist < 400)
+				{
+					Mcntr = 0;
+					osDelay(400);
+				}
+				else
+				{
+					ST_cnt = 0;
+					Mcntr = 1;
+					osDelay(10);
+					if((FL_dist < 1000) || (FR_dist < 1000))	RL_cnt = 0;
+				}
+				break;
+			case 1 :
+				if((FF_dist < 600) && (FR_dist > 1000) && (FL_dist > 1000))
+				{
+					switch(straight_param)
+					{
+					case 0 :
+						if(obstacle_state < 0)
+						{
+							//printe("=4=               \r\n");
+							Mcntr = 4;				// Quick Right
+							obstacle_state++;		// right turn 1
+							straight_param = 1;
+						}
+						else
+						{
+							//printe("=5=               \r\n");
+							Mcntr = 6;				// Quick Left
+							obstacle_state--;		// left turn 1
+							straight_param = 1;
+						}
+						osDelay(10);
+						break;
+					case 1 :
+						if((MAX_D < -90) || (MAX_D > 90))
+						{
+							//printe("=6=               \r\n");
+							Mcntr = 0;
+							osDelay(400);
+							straight_param = 0;
+							ST_cnt = 0;
+						}
+						osDelay(10);
+						break;
+					}
+				}
+				else if((FF_dist < 600) && ((FR_dist > 1000) || (FL_dist > 1000)))
+				{
+					switch(straight_param)
+					{
+					case 0 :
+						if(FR_dist > FL_dist)
+						{
+							//printe("=7=               \r\n");
+							Mcntr = 4;				// Quick Right
+							obstacle_state++;		// right turn 1
+							straight_param = 1;
+						}
+						else
+						{
+							//printe("=8=               \r\n");
+							Mcntr = 6;				// Quick Left
+							obstacle_state--;		// left turn 1
+							straight_param = 1;
+						}
+						osDelay(10);
+						break;
+					case 1 :
+						if((MAX_D < -90) || (MAX_D > 90))
+						{
+							//printe("=9=               \r\n");
+							Mcntr = 0;
+							osDelay(400);
+							straight_param = 0;
+							ST_cnt = 0;
+						}
+						osDelay(10);
+						break;
+					}
+				}
+				break;
+			}
+			break;
+		case 1 :	// left
+			if(RL_cnt == 0)
+			{
+				switch(left_param)
+				{
+				case 0 :
+					//Motor_Mode(1);	// forward
+					Mcntr = 1;
+					if(FL_dist > 1000)
+					{
+						Motor_Mode(0);	// STOP
+						Mcntr = 0;
+						osDelay(400);
+						//Read_Z_Angle(&MAX_D);
+						left_param = 1;
+					}
+					osDelay(10);
+					break;
+				case 1 :
+					//Read_Z_Angle(&MAX_D);
+					//Motor_Mode(6);	// Quick Left
+					Mcntr = 6;
+					if(MAX_D < -90)
+					{
+						Motor_Mode(0);	// STOP
+						Mcntr = 0;
+						osDelay(400);
+						left_param = 2;
+					}
+					osDelay(10);
+					break;
+				case 2 :
+					//Motor_Mode(1);	// forward
+					Mcntr = 1;
+					RL_cnt = 1;
+					osDelay(100);
+					left_param = 0;
+					Move_mode = 0;
+					break;
+				}
+			}
+			else
+			{
+			//Motor_Mode(1);	// forward
+			Mcntr = 1;
+			osDelay(10);
+			}
+			break;
+		case 2 :	// right
+			if(RL_cnt == 0)
+			{
+				switch(right_param)
+				{
+				case 0 :
+					//Motor_Mode(1);	// forward
+					Mcntr = 1;
+					if(FR_dist > 1000)
+					{
+						Motor_Mode(0);	// STOP
+						Mcntr = 0;
+						osDelay(400);
+						//Read_Z_Angle(&MAX_D);
+						right_param = 1;
+					}
+					osDelay(10);
+					break;
+				case 1 :
+					//Read_Z_Angle(&MAX_D);
+					//Motor_Mode(4);	// Quick right
+					Mcntr = 4;
+					if(MAX_D > 90)
+					{
+						Motor_Mode(0);	// STOP
+						Mcntr = 0;
+						osDelay(400);
+						right_param = 2;
+					}
+					osDelay(10);
+					break;
+				case 2 :
+					//Motor_Mode(1);	// forward
+					Mcntr = 1;
+					osDelay(100);
+					right_param = 0;
+					Move_mode = 0;
+					break;
+				}
+			}
+			else
+			{
+				//Motor_Mode(1);	// forward
+				Mcntr = 1;
+				osDelay(10);
+			}
+			break;
+		case 3 :	// back
+			if((FR_dist > 1000) && (FL_dist > 1000))
+			{
+				Motor_Mode(0);	// STOP
+				Mcntr = 0;
+				osDelay(400);
+				Move_mode = 0;
+			}
+			else if(BB_dist < 400)
+			{
+				Motor_Mode(0);	// STOP
+				Mcntr = 0;
+				osDelay(400);
+			}
+			else
+			{
+				//Motor_Mode(2);	// backward
+				Mcntr = 2;
+				osDelay(10);
+			}
+			break;
+		}
 
 		break;
 	}
@@ -784,8 +1105,7 @@ void MAP_LOAD()
 	// in Passenger Mode
 	if(drive_set == 1)
 	{
-		if(BLE_point > 0)		slave_state = 1;
-		else if(slave_state && (!map_set))
+		if(!map_set)
 		{
 			int map_ch = BLE_point + ESP_send;
 			switch(map_ch)
@@ -820,23 +1140,31 @@ void MAP_LOAD()
 				break;
 			}
 		}
+		else
+		{
+			if(safe_st)	drive_set = 2;
+		}
 	}
-	else if(drive_set == 0)
-	{
-		slave_state = 0;
-		BLE_point = 0;
-		ESP_send = 0;
-		map_select = 0;
-		map_set = 0;
-	}
+//	else if(drive_set == 0)
+//	{
+//		safe_st = 0;
+//		slave_state = 0;
+//		BLE_point = 0;
+//		ESP_send = 0;
+//		map_select = 0;
+//		map_set = 0;
+//	}
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch(GPIO_Pin) {
 	case GPIO_PIN_13:
-		drive_set = 2;
-		map_select = 1;
+		//drive_set = 5;		// charge
+		//map_select = 4;		// point2 - charge
+
+		// drive_set = 2;	// drive
+		//map_select = 1;	// point1 - point2
 		break;
   }
 }
@@ -1004,31 +1332,43 @@ unsigned int volt[100];
 unsigned int voltage_i = 0;
 unsigned int voltage_en = 0;
 float voltage = 0.0;         // Current Voltage
-float voltage_L = 12.4;		 // Lower Voltage
+float voltage_L = 12.45;		 // Lower Voltage
 #define min_voltage 9.00
-#define max_voltage 12.40
+#define max_voltage 12.45
 #define voltage_param (max_voltage - min_voltage)
-
+int volt_cnt = 0;
 void Voltage_state()
 {
 	unsigned int avolt = 0;	     // Average
 	volt[voltage_i++] = val;
 	//printf("voltage_i : %d \r\n", voltage_i);
-	if(voltage_i >= 100) {
+	if(voltage_i >= 10) {
 		voltage_i = 0;
 		voltage_en = 1;
 	}
 	if(voltage_en) {
-		for(int i = 0; i < 100; i++)
+		for(int i = 0; i < 10; i++)
 		{
+			if(volt[i] == 0)	volt[i] = 3100;
 		  avolt += volt[i];
-		  //printf("Current ADC Value(val) : %d \r\n", volt[i]);
 		}
-		voltage = avolt * 5 * 3.3 / 409500; // 평균 (avolt / 100) * Resolution (3.3 / 4095) * 분배비 5
-		if(voltage < voltage_L)
+		voltage = avolt * 5 * 3.3 / 40950; // 평균 (avolt / 10) * Resolution (3.3 / 4095) * 분배비 5
+		//printf("voltage : %.2f \r\n", voltage);
+		if(volt_cnt == 0)
+		{
+			printe("7100");
+			volt_cnt++;
+		}
+		else if(voltage < voltage_L)
 		{
 		  voltage_L = voltage;
 		  float curr_volt = (1 - ((max_voltage - voltage_L) / voltage_param)) * 100;
+
+		  unsigned char vtest_buf1[10];
+  		  sprintf(vtest_buf1, "7%03d", (int)curr_volt);
+  		  printe(vtest_buf1);
+
+		  if((int)curr_volt < 15)	drive_set = 5;
 
 		  /*debug*/
 //		  unsigned char vtest_buf1[50];
@@ -1039,8 +1379,15 @@ void Voltage_state()
 //		  unsigned char vtest_buf2[50];
 //		  sprintf(vtest_buf2, "B:%d\r\n", (int)curr_volt);
 //		  printe(vtest_buf2);
-//		  printf("배터리 충전 상태 : %d % \r\n", (int)curr_volt);
+		  //printf("배터리 충전 상태 : 7%03d \r\n", (int)curr_volt);
 		}
+		else if(voltage < 0)
+		{
+			printe("7000");
+		}
+
+//		float curr_volt2 = (1 - ((max_voltage - voltage) / voltage_param)) * 100;
+//		printf("배터리 충전 상태 : 7%03d \r\n", (int)curr_volt2);
 		voltage_en = 0;
 	}
 }
@@ -1134,7 +1481,6 @@ int main(void)
 	UART_Start_Receive_IT(&huart2, &dum2, 1);	// Putty
 	UART_Start_Receive_IT(&huart6, &dum1, 1);	// ESP8266
 	HAL_TIM_Base_Start_IT(&htim5);				// bluetooth AT Command Interrupt
-	HAL_TIM_OC_Start(&htim5, TIM_CHANNEL_1);	// Voltage Sensor ADC Trigger
 	HAL_ADC_Start_DMA(&hadc1, &val, 1);
 	HAL_TIM_Base_Start_IT(&htim3);				// Voltage_state Operation
 
@@ -1229,7 +1575,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.DiscontinuousConvMode = ENABLE;
   hadc1.Init.NbrOfDiscConversion = 1;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
-  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T5_CC1;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DMAContinuousRequests = ENABLE;
@@ -1405,7 +1751,7 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
@@ -1451,7 +1797,6 @@ static void MX_TIM5_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM5_Init 1 */
 
@@ -1471,21 +1816,9 @@ static void MX_TIM5_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
-  {
-    Error_Handler();
-  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
-  sConfigOC.Pulse = 5000-1;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_OC_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1699,13 +2032,16 @@ void StartTask1(void const * argument)
 		lastMotorMode = Mcntr;
 		Motor_Mode(lastMotorMode);
 	  }
-
 	  driving_mode();
-	  //MAP_operation();
-	  //printf("z:%d,dp:%d,ds:%d,Mm:%d\r\n",MAX_D, desti_param, drive_set, Move_mode);
-	  unsigned char testbuf2[50];
-	  sprintf(testbuf2,"z:%d,dp:%d,ds:%d,Mm:%d                     \r\n",MAX_D, desti_param, drive_set, Move_mode);
-	  printe(testbuf2);
+//	  unsigned char testbuf2[50];
+//	  sprintf(testbuf2[50],"D:%d,B:%d,W:%d,S:%d,M:%d\r\n", drive_set, BLE_point, ESP_send, safe_st, map_set);
+//	  printe(testbuf2);
+	  printf("D:%d,B:%d,W:%d,S:%d,M:%d\r\n", drive_set, BLE_point, ESP_send, safe_st, map_set);
+
+	  osDelay(100);
+//	  unsigned char testbuf2[50];
+//	  sprintf(testbuf2,"z:%d,dp:%d,ds:%d,Mm:%d                     \r\n",MAX_D, desti_param, drive_set, Move_mode);
+//	  printe(testbuf2);
 
 	  /* Debug */
 	  //printf("%d\r\n",Mcntr);
@@ -1774,10 +2110,10 @@ void StartTask03(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-	Read_Z_Angle(&MAX_D);
-	osDelay(1000);
+//	Read_Z_Angle(&MAX_D);
+//	osDelay(1000);
 	  // ESP Set
-
+	//Voltage_state();
 	if(esp_set == 0)
 	{
 		HAL_UART_Transmit(&huart6, "AT+CIPMUX=1", 11, 10);            // 0: single connection mode, 1: multi connection mode
@@ -1789,9 +2125,32 @@ void StartTask03(void const * argument)
 		//HARMAN TCP SERVER CONNECT
 		HAL_UART_Transmit(&huart6, "AT+CIPSTART", 11, 10);
 		HAL_UART_Transmit(&huart6, "=4,\"TCP\",\"1", 11, 10);
-		HAL_UART_Transmit(&huart6, "92.168.0.65", 11, 10);
-		HAL_UART_Transmit(&huart6, "\",3000\r\n", 8, 10);      // SERVER Connect
+		HAL_UART_Transmit(&huart6, "92.168.0.6", 10, 10);
+		HAL_UART_Transmit(&huart6, "9\",3000\r\n", 9, 10);      // SERVER Connect
 		osDelay(2000);
+	}
+	else if(drive_set == 0)
+	{
+		if(server_con == 0)
+		{
+			printe("8000");
+			server_con = 1;
+			osDelay(10);
+		}
+		Voltage_state();
+		osDelay(1000);
+	}
+	else if(drive_set == 1)
+	{
+		SEND_INFO();
+		MAP_LOAD();
+		osDelay(100);
+	}
+	else
+	{
+		SEND_INFO();
+		Read_Z_Angle(&MAX_D);
+		osDelay(10);
 	}
 	osDelay(1);
   }
@@ -1810,14 +2169,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
 	if (htim->Instance == TIM5) {
-			// Timer5 interrupt : 1 sec Period
+			// Timer5 interrupt : 0.5 sec Period
 		if(drive_set != 0) HAL_UART_Transmit(&huart1, "AT+INQ\r\n", 8, 10);
 		//else				Voltage_state();
 		}
-	else if (htim->Instance == TIM3) {
-			// Timer3 interrupt	0.06 sec Period
-		if(drive_set == 0)	Voltage_state();
-	}
+//	else if (htim->Instance == TIM3) {
+//			// Timer3 interrupt	0.06 sec Period
+//		if(drive_set == 0)	Voltage_state();
+//	}
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM10) {
     HAL_IncTick();
