@@ -28,11 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 
-bool screenState = false;
-
-int cur_Button;
-
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,7 +61,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_USART2_UART_Init(void);
-void MX_SPI1_Init(void);
+static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -108,44 +103,44 @@ int main(void)
   MX_USART2_UART_Init();
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
-	ProgramStart("4inch LCD Display demo...\r\n");
-	LCD_Clear(BACKGROUND_COLOR);
-	TP_Init();
-	Lcd_Init();
+   //ProgramStart("4inch LCD Display demo...\r\n");
+   LCD_Clear(BACKGROUND_COLOR);
+   TP_Init();
+   Lcd_Init();
 
 /* Check the mounted device
-	Gui_draw_line(10, 1, 10, 320, RED, 2, SOLID);
-	Gui_draw_line(15, 1, 15, 320, ORANGE, 2, SOLID);
-	Gui_draw_line(20, 1, 20, 320, YELLOW, 2, SOLID);
-	Gui_draw_line(25, 1, 25, 320, GREEN, 2, SOLID);
-	Gui_draw_line(30, 1, 30, 320, GBLUE, 2, SOLID);
-	Gui_draw_line(35, 1, 35, 320, BLUE, 2, SOLID);
-	Gui_draw_line(40, 1, 40, 320, PURPLE, 2, SOLID);
+   Gui_draw_line(10, 1, 10, 320, RED, 2, SOLID);
+   Gui_draw_line(15, 1, 15, 320, ORANGE, 2, SOLID);
+   Gui_draw_line(20, 1, 20, 320, YELLOW, 2, SOLID);
+   Gui_draw_line(25, 1, 25, 320, GREEN, 2, SOLID);
+   Gui_draw_line(30, 1, 30, 320, GBLUE, 2, SOLID);
+   Gui_draw_line(35, 1, 35, 320, BLUE, 2, SOLID);
+   Gui_draw_line(40, 1, 40, 320, PURPLE, 2, SOLID);
 //
-	Gui_draw_line(70, 10, 480, 10, BLACK, 1, SOLID);
-	Gui_draw_line(70, 20, 480, 20, RED, 2, DOTTED);
-	Gui_draw_line(70, 30, 480, 30, YELLOW, 3, SOLID);
-	Gui_draw_line(70, 40, 480, 40, MAGENTA, 4, DOTTED);
+   Gui_draw_line(70, 10, 480, 10, BLACK, 1, SOLID);
+   Gui_draw_line(70, 20, 480, 20, RED, 2, DOTTED);
+   Gui_draw_line(70, 30, 480, 30, YELLOW, 3, SOLID);
+   Gui_draw_line(70, 40, 480, 40, MAGENTA, 4, DOTTED);
 //
-	Gui_draw_rectangle(70, 80, 100, 120, RED, 1, EMPTY);
-	Gui_draw_rectangle(110, 80, 140, 120, GREEN, 1, EMPTY);
-	Gui_draw_rectangle(150, 80, 180, 120, BLUE, 1, EMPTY);
+   Gui_draw_rectangle(70, 80, 100, 120, RED, 1, EMPTY);
+   Gui_draw_rectangle(110, 80, 140, 120, GREEN, 1, EMPTY);
+   Gui_draw_rectangle(150, 80, 180, 120, BLUE, 1, EMPTY);
 
-	Gui_fill_color(220, 80, 260, 120, RED);
-	Gui_fill_color(290, 80, 330, 120, GREEN);
-	Gui_fill_color(360, 80, 400, 120, BLUE);
+   Gui_fill_color(220, 80, 260, 120, RED);
+   Gui_fill_color(290, 80, 330, 120, GREEN);
+   Gui_fill_color(360, 80, 400, 120, BLUE);
 //
-	Gui_draw_circle(370, 180, 20, GREEN, 1, FULL);
-	Gui_draw_circle(370, 180, 30, RED, 2, EMPTY);
-	Gui_draw_circle(370, 180, 40, BLUE, 3, EMPTY);
+   Gui_draw_circle(370, 180, 20, GREEN, 1, FULL);
+   Gui_draw_circle(370, 180, 30, RED, 2, EMPTY);
+   Gui_draw_circle(370, 180, 40, BLUE, 3, EMPTY);
 
-	Gui_draw_str(80, 230, "JERRY & KWANG KWANG", &Font24, 0xF5F8, WHITE);
-	Gui_draw_str(80, 265, "!Shabu-shabu!", &Font24, RED, WHITE);
+   Gui_draw_str(80, 230, "JERRY & KWANG KWANG", &Font24, 0xF5F8, WHITE);
+   Gui_draw_str(80, 265, "!Shabu-shabu!", &Font24, RED, WHITE);
 
-	HAL_Delay(2000);*/
-	//SD_Init();
-	//display_images();
-	Load_Touch_Draw();
+   HAL_Delay(2000);*/
+   //SD_Init();
+   //display_images();
+   Load_Touch_Draw();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -155,8 +150,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  TP_test();
-	  HAL_Delay(100);
+     TP_test();
+     HAL_Delay(100);
   }
   /* USER CODE END 3 */
 }
@@ -212,7 +207,7 @@ void SystemClock_Config(void)
   * @param None
   * @retval None
   */
- void MX_SPI1_Init(void)
+static void MX_SPI1_Init(void)
 {
 
   /* USER CODE BEGIN SPI1_Init 0 */
@@ -230,7 +225,7 @@ void SystemClock_Config(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -259,6 +254,7 @@ static void MX_TIM3_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM3_Init 1 */
 
@@ -268,7 +264,7 @@ static void MX_TIM3_Init(void)
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 1000-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
@@ -278,15 +274,28 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
@@ -341,7 +350,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, SD_CS_Pin|LCD_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, SD_CS_Pin|TP_CS_Pin|LCD_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, LCD_RST_Pin|LCD_DC_Pin, GPIO_PIN_RESET);
@@ -352,8 +361,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : SD_CS_Pin LCD_CS_Pin */
-  GPIO_InitStruct.Pin = SD_CS_Pin|LCD_CS_Pin;
+  /*Configure GPIO pins : SD_CS_Pin TP_CS_Pin LCD_CS_Pin */
+  GPIO_InitStruct.Pin = SD_CS_Pin|TP_CS_Pin|LCD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -366,16 +375,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : TP_BUSY_Pin TP_CS_Pin */
-  GPIO_InitStruct.Pin = TP_BUSY_Pin|TP_CS_Pin;
+  /*Configure GPIO pin : TP_BUSY_Pin */
+  GPIO_InitStruct.Pin = TP_BUSY_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(TP_BUSY_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : TP_IRQ_Pin */
   GPIO_InitStruct.Pin = TP_IRQ_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(TP_IRQ_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
@@ -401,7 +410,7 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
-	  TP_test();
+     TP_test();
   }
   /* USER CODE END Error_Handler_Debug */
 }

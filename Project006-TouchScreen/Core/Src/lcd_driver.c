@@ -1,38 +1,42 @@
 #include <stdio.h>
-#include "usart.h"
 #include "lcd_driver.h"
-#include "tim.h"
+
+extern UART_HandleTypeDef huart2;
+
+extern TIM_HandleTypeDef htim3;
 
 //LCD pen color and background color   
 uint16_t POINT_COLOR=0x0000; //brush color
 uint16_t BACK_COLOR=0xFFFF;  //background color  
 _lcd_dev lcddev;
 
+extern SPI_HandleTypeDef hspi1;
+
 void Lcd_Gpio_Init(void)
 {
 
-    LCD_CS_1;                   /* LCD��ѡ�� */
+    LCD_CS_1;                   /* LCD  ѡ   */
 }
 
 //Hardware reset
 static void Lcd_Reset(void)
 {
-		//LCD reset
-		LCD_RST_1;
-		HAL_Delay(1);
-		LCD_RST_0;
-		HAL_Delay(80);
-		LCD_RST_1;
-		HAL_Delay(10);
+      //LCD reset
+      LCD_RST_1;
+      HAL_Delay(1);
+      LCD_RST_0;
+      HAL_Delay(80);
+      LCD_RST_1;
+      HAL_Delay(10);
 }
 
 //the value is between 0 and 1000
 //The frequency of PWM is 100Hz,and the duty cycle of PWM is determined by value
 void BlackLight_SetValue(uint16_t value)
-{		
-	
+{
+
     TIM_OC_InitTypeDef sConfigOC;
-	
+
     sConfigOC.OCMode = TIM_OCMODE_PWM1;
     sConfigOC.Pulse = value;
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
@@ -46,7 +50,7 @@ static void Spi_write_cmd(uint8_t data)
 { 
    LCD_CS_0;
    LCD_DC_0;
-	 HAL_SPI_Transmit(&hspi1,&data,1,0xff);
+    HAL_SPI_Transmit(&hspi1,&data,1,0xff);
    LCD_CS_1;
 }
 //Write a byte data
@@ -60,11 +64,11 @@ static void Spi_write_data(uint8_t data)
 //Write a word data
 void Spi_write_word(uint16_t data)
 {
-	 uint8_t temp;
-	 temp = data >> 8;
-	 HAL_SPI_Transmit(&hspi1,&temp,1,0xff);
-	 temp = data & 0xff;
-	 HAL_SPI_Transmit(&hspi1,&temp,1,0xff);
+    uint8_t temp;
+    temp = data >> 8;
+    HAL_SPI_Transmit(&hspi1,&temp,1,0xff);
+    temp = data & 0xff;
+    HAL_SPI_Transmit(&hspi1,&temp,1,0xff);
 }   
 
 //Common register initialization
@@ -244,6 +248,16 @@ void LCD_Set_Cursor(uint16_t x, uint16_t y)
 //
 //clear screen function
 //color:fill color to clear
+
+void SPI_Set_Speed(uint32_t speed)
+{
+    hspi1.Init.BaudRatePrescaler = speed;
+	  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+		{
+			Error_Handler();
+		}
+}
+
 void LCD_Clear(uint16_t color)
 {
   uint32_t i; 
@@ -252,17 +266,21 @@ void LCD_Clear(uint16_t color)
   Spi_write_cmd(lcddev.wramcmd);//Start writing to GRAM 
   LCD_CS_0;
   LCD_DC_1;
-  SPI_Set_Speed(SPI_BAUDRATEPRESCALER_4);	
+  SPI_Set_Speed(SPI_BAUDRATEPRESCALER_4);
   for(i=0;i<(uint32_t)LCD_W*LCD_H;i++)
   {
      Spi_write_word(color); 
   }
   LCD_CS_1;
-	SPI_Set_Speed(SPI_BAUDRATEPRESCALER_16);
-	 Draw_Battery(80);
-	 // 예시 호출
-	 // 예시 호출: (x=10, y=10) 위치에 하트와 심박수 75를 표시
-	 Gui_draw_heart_with_heartbeat(30, 30,RED,BLACK, 0xffff, 75);
+   SPI_Set_Speed(SPI_BAUDRATEPRESCALER_16);
+    Draw_Battery(80);
+    // 예시 호출
+    // 예시 호출: (x=10, y=10) 위치에 하트와 심박수 75를 표시
+
+    // 심박센서에서 BPM 값을 읽기
+    //int heartbeat = GetBPM();  // 심박센서에서 BPM 값을 실시간으로 읽음
+
+    Gui_draw_heart_with_heartbeat(30, 30,RED,BLACK, 0xffff, 75);
 }
 
 void LCD_Clearx(void)

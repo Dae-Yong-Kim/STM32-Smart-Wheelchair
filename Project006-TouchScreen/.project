@@ -29,17 +29,4 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
-	<linkedResources>
-		<link>
-			<name>Core/Src/mylib.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/myLib/Src/mylib.c</locationURI>
-		</link>
-	</linkedResources>
-	<variableList>
-		<variable>
-			<name>copy_PARENT</name>
-			<value>$%7BPARENT-1-PROJECT_LOC%7D/repos/smart_Wheelchair/Smart-Wheelchair</value>
-		</variable>
-	</variableList>
 </projectDescription>

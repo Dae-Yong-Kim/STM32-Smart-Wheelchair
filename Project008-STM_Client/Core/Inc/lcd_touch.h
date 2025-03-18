@@ -49,7 +49,7 @@ void TP_Init(void);
 uint8_t TP_Scan(uint8_t mode);
 void TP_Calibrate(void);
 void Load_Touch_Draw(void);
-void TP_test(int heartbeat, int battery, int* current_screen);
+int TP_test(int heartbeat, int battery, int current_screen);
 
 #ifdef __cplusplus
 }

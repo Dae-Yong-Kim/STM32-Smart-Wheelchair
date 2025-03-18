@@ -460,7 +460,8 @@ void EmergencyMessage(void)
 
 
 
-void TP_test(int heartbeat, int battery, int* current_screen)
+int cr_screen = 0;
+int TP_test(int heartbeat, int battery, int current_screen)
 {
     uint16_t paint_width = 2;
     //Load_Touch_Draw();  // 초기 화면 로드
@@ -471,6 +472,7 @@ void TP_test(int heartbeat, int battery, int* current_screen)
 
 	TP_Scan(0);
 	HAL_Delay(100);
+	cr_screen = current_screen;
 
 	// 1초마다 BPM을 갱신하고 화면에 표시
 	/*if (HAL_GetTick() - last_bpm_update_time >= 1000)  // 1초가 경과했을 때
@@ -485,32 +487,32 @@ void TP_test(int heartbeat, int battery, int* current_screen)
 		last_battery = battery;
 	}*/
 
-	if (heartbeat >= 120 && *current_screen != 1)
+	if (heartbeat >= 120 && cr_screen != 1)
 	{
 		LCD_Clear(BACKGROUND_COLOR, heartbeat, battery);  // 화면 클리어
 		EmergencyMessage();  // 긴급 메시지 표시 함수 호출
-		*current_screen = 1;  // 화면 상태를 SCREEN_EMERGENCY로 변경
+		cr_screen = 1;  // 화면 상태를 SCREEN_EMERGENCY로 변경
 	}
 
 	if(tp_dev.statu & TP_PRESS_DOWN)
 	{
 		if(tp_dev.x[0]<lcddev.width && tp_dev.y[0]<lcddev.height)
 		{
-			if (*current_screen == 0)  // 메인 화면일 때 버튼 체크
+			if (cr_screen == 0)  // 메인 화면일 때 버튼 체크
 			{
 				if ((tp_dev.x[0]-130)*(tp_dev.x[0]-130) + (tp_dev.y[0]-165)*(tp_dev.y[0]-165) <= 65*65)
 				{
 					LCD_Clear(BACKGROUND_COLOR, heartbeat, battery);
+					while(!printe("2200"));
 					ShowDestA();
-					while(!printe("2000"));
-					*current_screen = 1;
+					cr_screen = 2;
 				}
 				else if ((tp_dev.x[0]-330)*(tp_dev.x[0]-330) + (tp_dev.y[0]-165)*(tp_dev.y[0]-165) <= 65*65)
 				{
 					LCD_Clear(BACKGROUND_COLOR, heartbeat, battery);
+					while(!printe("2300"));
 					ShowDestB();
-					while(!printe("2100"));
-					*current_screen = 2;
+					cr_screen = 3;
 				}
 			}
 			else
@@ -519,7 +521,7 @@ void TP_test(int heartbeat, int battery, int* current_screen)
 				{
 					LCD_Clear(BACKGROUND_COLOR, heartbeat, battery);
 					Load_Touch_Draw();  // 메인 화면으로 복귀
-					*current_screen = 0;
+					cr_screen = 0;
 				}
 			}
 			/*if (current_screen == SCREEN_MAIN)  // 메인 화면일 때 버튼 체크
@@ -574,6 +576,7 @@ void TP_test(int heartbeat, int battery, int* current_screen)
 				}
 			}*/
 		}
+		return cr_screen;
 	}
 }
 

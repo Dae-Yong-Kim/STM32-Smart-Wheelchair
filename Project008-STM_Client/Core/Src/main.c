@@ -84,16 +84,16 @@ char buf1[BUF_SIZE], buf2[BUF_SIZE]; // DMA Buffer
 char dum1, dum2;
 int head1 = 0, head2 = 0, tail1 = 0, tail2 = 0;
 int belt_mode = 0, sit_mode = 0;	// belt mode(0: unbuckle, 1: buckle), sit mode(0: stand, 1: sit)
-int belt_pe = 1, sit_pe = 1;		// belt print enable, sit print enable
+int belt_pe = 0, sit_pe = 0;		// belt print enable, sit print enable
 int TCP_connect = 1, WIFI_connect = 1;
 int last_printe = 0;
 int pre_battery = 100, battery = 100, lcd_set = 0, tp_en = 0;
 int hall_set = 0, force_set = 0, wifi_set = 0;
-int beatAvg = 0, main_sc = 0, emer_sc = 0;
+int beatAvg = 0, main_sc = 0, emer_sc = 0, desb_sc = 0;
 int current_screen = 0; //0: main, 1: emergency, 2: A, 3: B
 // SM has to change huart1 to huart6
 int printe(char* str) {
-	if((HAL_GetTick() - last_printe) < 100) {
+	if((HAL_GetTick() - last_printe) < 500) {
 		return 0;
 	}
 	else {
@@ -114,6 +114,7 @@ int printe(char* str) {
 			}
 			int n = str_len / 11;
 			int i = 0;
+			HAL_Delay(200);
 			printf("loading..................................\r\n");
 			for(i = 0; i < n; i++) {
 				HAL_UART_Transmit(&huart1, temp_str + (i * 11), 11, 10);
@@ -248,13 +249,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	  case TP_IRQ_Pin:
 		  if(lcd_set) {
 			  tp_en = 1;
+			  printf("tp_en: %d\r\n", tp_en);
 		  }
 
 		  break;
 	  case B1_Pin:
-		  if(wifi_set) {
+		  /*if(wifi_set) {
 			  ESP8266_client_init();
-		  }
+		  }*/
 		  break;
   }
 }
@@ -275,13 +277,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     		  buf1[tail1] = '\0';
 
     		  //printf("%s\r\n", buf1);
-
-    		  char comp_buf[BUF_SIZE];
-    		  sprintf(comp_buf, "%s", buf1);
-    		  if(!strncmp(comp_buf, "4,CONNECT", 9) || !strncmp(comp_buf, "ALREADY CONNECTED", 17)) {
+    		  if(!strncmp(buf1, "4,CONNECT", 9) || !strncmp(buf1, "ALREADY CONNECTED", 17)) {
     			  TCP_connect = 0;
     		  }
-    		  if(!strncmp(comp_buf, "4,CLOSED", 8)) {
+    		  if(!strncmp(buf1, "4,CLOSED", 8)) {
     			  TCP_connect = 1;
     		  }
     		  if(!strncmp(buf1, "WIFI GOT IP", 11)) {
@@ -292,15 +291,15 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 			  }
 
 
-			  if(!strncmp(comp_buf, "+IPD,", 5)) {
-				  switch(comp_buf[9]) {													// Recieve MSG From Client
+			  if(!strncmp(buf1, "+IPD,", 5)) {
+				  switch(buf1[9]) {													// Recieve MSG From Client
 					  case '0':														// Emergency (Not use in Server)
-						  if(comp_buf[10] = '0') {
+						  if(buf1[10] == '0') {
 							  emer_sc = 1;
-							  /*LCD_Clear(BACKGROUND_COLOR, beatAvg, battery);  // 화면 클리어
-							  EmergencyMessage();*/  // 긴급 메시지 표시 함수 호출
+							  /*LCD_Clear(BACKGROUND_COLOR, beatAvg, battery);  // ?���?? ?��리어
+							  EmergencyMessage();*/  // 긴급 메시�?? ?��?�� ?��?�� ?���??
 						  }
-						  else {
+						  else if(buf1[10] == '1') {
 							  main_sc = 1;
 							  /*LCD_Clear(BACKGROUND_COLOR, beatAvg, battery);
 							  Load_Touch_Draw();*/
@@ -310,6 +309,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 						  // Origin is xxx
 						  break;
 					  case '2':														// Destination is xxx
+						  if(buf1[10] == '3') {
+							  desb_sc = 1;
+							  /*LCD_Clear(BACKGROUND_COLOR, beatAvg, battery);  // ?���?? ?��리어
+							  EmergencyMessage();*/  // 긴급 메시�?? ?��?�� ?��?�� ?���??
+						  }
 						  // recieve 2xxx value ==> Destination is xxx
 						  break;
 					  case '3':														// Arrive at Destination (Not use in Server)
@@ -324,8 +328,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 					  case '6':														// Heart Beat Sensor
 						  break;
 					  case '7':														// Voltage Sensor (Not use in Server)
-						  printf("remain battery: %s%", comp_buf + 10);
-						  battery = atoi(comp_buf + 10);
+						  printf("remain battery: %s%", buf1 + 10);
+						  battery = atoi(buf1 + 10);
 						  break;
 					  case '8':														// STM Client
 						  break;
@@ -360,14 +364,14 @@ void ESP8266_client_init(){
 
 	HAL_UART_Transmit(&huart1, "AT+CWMODE=1", 11, 10);				// 1: CLIENT MODE, 2: SERVER MODE, 3: Multi mode
 	HAL_UART_Transmit(&huart1, "\r\n", 2, 10);
-	HAL_Delay(10);
+	HAL_Delay(100);
 
 	while(WIFI_connect) { // HARMAN WIFI CONNECT
 		HAL_UART_Transmit(&huart1, "AT+CWJAP=\"P", 11, 10);
 		HAL_UART_Transmit(&huart1, "rocessor2.4", 11, 10);
 		HAL_UART_Transmit(&huart1, "G\",\"Process", 11, 10);
 		HAL_UART_Transmit(&huart1, "or1234\"\r\n", 9, 10);      // SERVER Connect
-		HAL_Delay(1000);
+		HAL_Delay(400);
 	}
 
 	/*while(WIFI_connect) { // DY WIFI CONNECT
@@ -381,7 +385,7 @@ void ESP8266_client_init(){
 
 	HAL_UART_Transmit(&huart1, "AT+CIPMUX=1", 11, 10);				// 0: single connection mode, 1: multi connection mode
 	HAL_UART_Transmit(&huart1, "\r\n", 2, 10);
-	HAL_Delay(10);
+	HAL_Delay(100);
 
 	// STM TCP SERVER CONNECT
 	/*while(TCP_connect) {
@@ -407,12 +411,12 @@ void ESP8266_client_init(){
 		HAL_UART_Transmit(&huart1, "=4,\"TCP\",\"1", 11, 10);
 		HAL_UART_Transmit(&huart1, "92.168.0.69", 11, 10);
 		HAL_UART_Transmit(&huart1, "\",3000\r\n", 8, 10);      // SERVER Connect
-		HAL_Delay(1000);
+		HAL_Delay(400);
 	}
 
 
+	HAL_Delay(500);
 	while(!printe("8100"));
-	HAL_Delay(100);
 	printf("connect TCP server\r\n");
 
 	/*HAL_UART_Transmit(&huart1, "AT+CIFSR", 11, 10);					// Show IP & MAC Address
@@ -470,6 +474,7 @@ int main(void)
   // LED Current set
   data = 0x0A;  // MAX 50mA (0xFF) // 0x20: 14.2mA
   HAL_I2C_Mem_Write(&hi2c1, W_addr, 0x0C, 1, &data, 1, 1000);
+  HAL_Delay(5000);
   lcd_set = 1;
   force_set = 1;
   hall_set = 1;
@@ -483,10 +488,12 @@ int main(void)
   double beatsPerMinute = 0;
   int beat_cnt = 0;
   int lastBeat = 0;
-  int pre_beat_mode = 3, beat_mode = 0;	//0: no finger, 1: normal, 2: abnormal
+  int pre_beat_mode = 0, beat_mode = 0;	//0: no finger, 1: normal, 2: abnormal
   int IRValue = 0;
   int last_bpm_update_time = 0;
   int pre_bpm = 0;
+  tp_en = 1;
+  TP_Scan(0);
   while (1)
   {
 	  HAL_I2C_Mem_Read(&hi2c1, R_addr, 0x00, 1, &data, 1, 1000);
@@ -535,12 +542,12 @@ int main(void)
 	  if (HAL_GetTick() - last_bpm_update_time >= 1000)  // 1초�? 경과?��?�� ?��
 	  {
 		  //Update_BPM_Text(38, 23, beatAvg);
-		  //heartbeat = rand() % 41 + 60;  // 60 ~ 100 ?��?��?�� ?��?�� BPM �?? ?��?��
+		  //heartbeat = rand() % 41 + 60;  // 60 ~ 100 ?��?��?�� ?��?�� BPM �???? ?��?��
 		  if((IRValue >= 10000) && (pre_bpm != beatAvg)) {
 			  Update_BPM_Text(38, 23, beatAvg);
 			  pre_bpm = beatAvg;
 		  }
-		  last_bpm_update_time = HAL_GetTick();  // 마�?�?? ?��?��?��?�� ?���?? 기록
+		  last_bpm_update_time = HAL_GetTick();  // 마�?�???? ?��?��?��?�� ?���???? 기록
 	  }
 
 	  // beat printe
@@ -585,10 +592,10 @@ int main(void)
 
 	  if(tp_en) {
 		  if(IRValue < 10000) {
-			  TP_test(0, battery, &current_screen);
+			  current_screen = TP_test(0, battery, current_screen);
 		  }
 		  else {
-			  TP_test(beatAvg, battery, &current_screen);
+			  current_screen = TP_test(beatAvg, battery, current_screen);
 		  }
 		  tp_en = 0;
 	  }
@@ -602,12 +609,21 @@ int main(void)
 		  LCD_Clear(BACKGROUND_COLOR, beatAvg, battery);
 		  Load_Touch_Draw();
 		  current_screen = 0;
+		  main_sc = 0;
 	  }
 
 	  if(emer_sc && (current_screen != 1)) {
-		  LCD_Clear(BACKGROUND_COLOR, beatAvg, battery);  // 화면 클리어
+		  LCD_Clear(BACKGROUND_COLOR, beatAvg, battery);  // ?���?? ?��리어
 		  EmergencyMessage();
 		  current_screen = 1;
+		  emer_sc = 0;
+	  }
+
+	  if(desb_sc && (current_screen != 3)) {
+		  LCD_Clear(BACKGROUND_COLOR, beatAvg, battery);  // ?���?? ?��리어
+		  ShowDestB();
+		  current_screen = 3;
+		  desb_sc = 0;
 	  }
 
     /* USER CODE END WHILE */

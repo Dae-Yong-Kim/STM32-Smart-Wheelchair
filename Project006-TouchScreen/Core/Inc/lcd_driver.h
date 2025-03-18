@@ -5,7 +5,8 @@
 extern "C" {
 #endif
 	
-#include "spi.h"
+#include "stm32f4xx_ll_spi.h"
+
 
 #define LCD_CS_GPIO_PORT                 GPIOB
 #define LCD_CS_GPIO_PIN                  GPIO_PIN_6

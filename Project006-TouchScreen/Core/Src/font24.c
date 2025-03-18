@@ -2476,7 +2476,7 @@ const uint8_t Font24_Table[]=
 FONT Font24 = {
   Font24_Table,
   0,
-  17,  // Width
+  17,  // Width 
   24,  // Height
 };
 

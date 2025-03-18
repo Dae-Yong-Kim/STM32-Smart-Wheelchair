@@ -6,50 +6,49 @@
  */
 #include "main.h"
 #include <stdio.h>
-//#include "C:\Users\user\STM32Cube\Repository\STM32Cube_FW_F4_V1.28.1\Drivers\STM32F4xx_HAL_Driver\inc\stm32f4xx_hal_i2c.h"
+ //#include "C:\Users\user\STM32Cube\Repository\STM32Cube_FW_F4_V1.28.1\Drivers\STM32F4xx_HAL_Driver\inc\stm32f4xx_hal_i2c.h"
 extern UART_HandleTypeDef huart2;
 
 
 int __io_getchar(void)
 {
-   char ch;
-   //ë°ì´í„°ë¥¼ ë°›ì„ ë•Œê¹Œì§€ ê¸°ë‹¤ë ¤ì•¼ í•˜ë¯€ë¡œ whileì„ ì‚¬ìš©í•´ì•¼ í•¨
-   while(HAL_UART_Receive(&huart2, &ch, 1, 10) != HAL_OK);
-   HAL_UART_Transmit(&huart2, &ch, 1, 10); // echo: Serial í†µì‹ ì—ì„œ ë°›ì€ ë°ì´í„°ë¥¼ ê·¸ëŒ€ë¡œ ëŒë ¤ì£¼ëŠ” ê²ƒ
-   if(ch == '\r') HAL_UART_Transmit(&huart2, "\n", 1, 10);
-   return ch;
+	char ch;
+	//µ¥ÀÌÅÍ¸¦ ¹ŞÀ» ¶§±îÁö ±â´Ù·Á¾ß ÇÏ¹Ç·Î whileÀ» »ç¿ëÇØ¾ß ÇÔ
+	while (HAL_UART_Receive(&huart2, &ch, 1, 10) != HAL_OK);
+	HAL_UART_Transmit(&huart2, &ch, 1, 10); // echo: Serial Åë½Å¿¡¼­ ¹ŞÀº µ¥ÀÌÅÍ¸¦ ±×´ë·Î µ¹·ÁÁÖ´Â °Í
+	if (ch == '\r') HAL_UART_Transmit(&huart2, "\n", 1, 10);
+	return ch;
 }
 int __io_putchar(int ch) // Lowest output Function
 {
-   HAL_UART_Transmit(&huart2, &ch, 1, 10); // timeout: 10ms
-   return ch;
+	HAL_UART_Transmit(&huart2, &ch, 1, 10); // timeout: 10ms
+	return ch;
 }
-void ProgramStart(char *str)
+void ProgramStart(char* str)
 {
-   //printf("\033[2J\033[0;0H"); // printf("\033[2J"); : í™”ë©´ Clear
-   cls();
-   Cursor(0,0);
-   printf("Program Name - %s\r\n", str);
-   printf("Press Blue-button(B1) to Start ...\r\n");
-   StandBy();
-   setvbuf(stdin, NULL, _IONBF, 0);
+	//printf("\033[2J\033[0;0H"); // printf("\033[2J"); : È­¸é Clear
+	cls();
+	Cursor(0, 0);
+	printf("Program Name - %s\r\n", str);
+	printf("Press Blue-button(B1) to Start ...\r\n");
+	StandBy();
+	setvbuf(stdin, NULL, _IONBF, 0);
 }
 
 void StandBy()
 {
-   while(HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin));
+	while (HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin));
 }
 
-void cls() // í™”ë©´ clear
+void cls() // È­¸é clear
 {
-   printf("\033[2J");
+	printf("\033[2J");
 }
 
 void Cursor(int x, int y)
 {
-   char buf[20];
-   sprintf(buf, "\033[%d;%dH", y,x);
-   puts(buf);
+	char buf[20];
+	sprintf(buf, "\033[%d;%dH", y, x);
+	puts(buf);
 }
-
 

@@ -158,6 +158,55 @@ void Gui_draw_circle(uint16_t x, uint16_t y, uint16_t r, uint16_t color, uint16_
     }
 }
 
+void Gui_draw_half_circle(uint16_t x, uint16_t y, uint16_t r, uint16_t color, uint16_t width, FILL fill)
+{
+    uint16_t dx = 0, dy = r;
+    int d = 1 - r;
+    uint16_t i;
+
+    if (x > lcddev.width || y > lcddev.height)
+    {
+        printf("ERR: circle center point out of screen area!\r\n");
+        return;
+    }
+
+    while (dy >= dx)
+    {
+        if (fill == EMPTY)  // 상반원 외곽만 그리기
+        {
+            // 상반부만 그린다.
+            Gui_draw_point(x + dx, y - dy, color, width);
+            Gui_draw_point(x + dy, y - dx, color, width);
+            Gui_draw_point(x - dx, y - dy, color, width);
+            Gui_draw_point(x - dy, y - dx, color, width);
+        }
+        else if (fill == FULL)  // 상반원 채우기
+        {
+            // 상반부만 채운다.
+            for (i = dx; i <= dy; i++)
+            {
+                Gui_draw_point(x + dx, y - i, color, width);
+                Gui_draw_point(x + i, y - dx, color, width);
+                Gui_draw_point(x - dx, y - i, color, width);
+                Gui_draw_point(x - i, y - dx, color, width);
+            }
+        }
+
+        if (d < 0)
+        {
+            d += 2 * dx + 3;
+        }
+        else
+        {
+            d += 2 * (dx - dy) + 5;
+            dy--;
+        }
+        dx++;
+    }
+}
+
+
+
 
 void Gui_draw_char(uint16_t x, uint16_t y, const char str_char, FONT* Font, uint16_t color, uint16_t background)
 {
@@ -250,7 +299,21 @@ void Gui_draw_heart_with_heartbeat(uint16_t x, uint16_t y, uint16_t heart_color,
     sprintf(heartbeat_text, "%d bpm", heartbeat);
 
     // 하트 옆에 심박수 텍스트 표시
-    Gui_draw_str(38, 23, heartbeat_text, &Font16, text_color, background);
+    Gui_draw_str(40, 23, heartbeat_text, &Font16, text_color, background);
 }
+
+void Update_BPM_Text(uint16_t x, uint16_t y, int heartbeat)
+{
+    // 이전 BPM 텍스트를 지우기 위해 배경 색상으로 덮기
+	Gui_draw_rectangle(x, y, x + 80, y + 16, WHITE, 1, FULL);  // 예: BPM 텍스트 영역 크기(80x16)로 덮기
+
+    // 새로운 BPM 값 그리기
+    char heartbeat_text[20];
+    sprintf(heartbeat_text, "%d bpm", heartbeat);
+    Gui_draw_str(38, 23, heartbeat_text, &Font16, BLACK, BACKGROUND_COLOR);  // 새로운 BPM 값 출력
+}
+
+
+
 
 

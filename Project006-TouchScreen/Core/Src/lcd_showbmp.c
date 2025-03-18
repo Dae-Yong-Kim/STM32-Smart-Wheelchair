@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "usart.h"
 #include "lcd_driver.h"
 #include "lcd_showbmp.h"
 #include "fatfs_storage.h"
+
+extern UART_HandleTypeDef huart2;
 
 char* pDirectoryFiles[MAX_BMP_FILES];
 FATFS SDFatFs;
