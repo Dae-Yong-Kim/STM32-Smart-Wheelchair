@@ -1,4 +1,5 @@
 var net = require('net'); // net 모듈 로드
+var graph = require('./dijkstra'); // 다익스트라 모듈 로드
 
 // 클라이언트들을 저장할 배열
 let clients = [];
@@ -86,7 +87,7 @@ var server = net.createServer((socket) => { // TCP 서버를 만든다.
                     let message = socket.clientState.buffer.slice(0, 6);
                     socket.clientState.buffer = socket.clientState.buffer.slice(6); // 나머지 버퍼 갱신
                     clients.forEach(client => {
-                        if (client.clientState.type === 'WheelChair') {
+                        if (client.clientState.type === 'WheelChair' || client.clientState.type === 'APP') {
                             client.write(message);
                             console.log('목적지 (LCD -> SERVER -> WC):', message);
                         }
