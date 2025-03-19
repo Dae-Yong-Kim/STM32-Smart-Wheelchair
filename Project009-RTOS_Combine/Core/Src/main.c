@@ -138,6 +138,7 @@ int map_set = 0;
 // Drive Mode Set
 /*0 : straight, 1 : left, 2 : right, 3 : back*/
 int Move_mode = 0;
+int RL_cnt = 0;
 void MAP_operation()
 {
 	switch(map_select)
@@ -145,8 +146,16 @@ void MAP_operation()
 	case 1 :	// 8E4591 - 15DA51 - 37826F
 		if(drive_set == 2)
 		{
-			if(BLE_point == 4)		Move_mode = 1;
-			else if(BLE_point == 2)	drive_set = 4;
+			if((BLE_point == 4) && (!RL_cnt))
+			{
+				Move_mode = 1;
+				RL_cnt = 1;
+			}
+			else if(BLE_point == 2)
+			{
+				drive_set = 4;
+				RL_cnt = 0;
+			}
 		}
 		break;
 	case 2 :	// 8E4591 - 15DA51 - A7EF18
@@ -159,15 +168,31 @@ void MAP_operation()
 	case 3 :	// 37826F - 15DA51 - 8E4591
 		if(drive_set == 2)
 		{
-			if(BLE_point == 4)		Move_mode = 2;
-			else if(BLE_point == 1)	drive_set = 4;
+			if((BLE_point == 4) && (!RL_cnt))
+			{
+				Move_mode = 2;
+				RL_cnt = 1;
+			}
+			else if(BLE_point == 1)
+			{
+				drive_set = 4;
+				RL_cnt = 0;
+			}
 		}
 		break;
 	case 4 :	// 37826F - 15DA51 - A7EF18
 		if((drive_set == 2) || (drive_set == 5))
 		{
-			if(BLE_point == 4)		Move_mode = 1;
-			else if(BLE_point == 3)	drive_set = 4;
+			if((BLE_point == 4) && (!RL_cnt))
+			{
+				Move_mode = 1;
+				RL_cnt = 1;
+			}
+			else if(BLE_point == 3)
+			{
+				drive_set = 4;
+				RL_cnt = 0;
+			}
 		}
 		break;
 	case 5 :	// A7EF18 - 15DA51 - 8E4591
@@ -180,8 +205,16 @@ void MAP_operation()
 	case 6 :	// A7EF18 - 15DA51 - 37826F
 		if(drive_set == 2)
 		{
-			if(BLE_point == 4)		Move_mode = 2;
-			else if(BLE_point == 2)	drive_set = 4;
+			if((BLE_point == 4) && (!RL_cnt))
+			{
+				Move_mode = 2;
+				RL_cnt = 1;
+			}
+			else if(BLE_point == 2)
+			{
+				drive_set = 4;
+				RL_cnt = 0;
+			}
 		}
 		break;
 	default :
@@ -552,7 +585,7 @@ double FF_dist = 0, FR_dist = 0, FL_dist = 0, BB_dist = 0;
 
 /*0 : standby, 1 : Passnger, 2 : Drive, 3 : Watchdog, 4 : Destination, 5 : Charge*/
 // drive_set
-int RL_cnt = 0;
+
 int ST_cnt = 0;
 void driving_mode()
 {
@@ -565,8 +598,8 @@ void driving_mode()
 		left_param = 0;
 		right_param = 0;
 		desti_param = 0;
-		RL_cnt = 0;
 		ST_cnt = 0;
+		RL_cnt = 0;
 		move_comp = 0;	// initialize
 		safe_st = 0;
 		slave_state = 0;
@@ -617,8 +650,9 @@ void driving_mode()
 				else
 				{
 					// Debug
-					//RL_cnt = 0;
-					//ST_cnt = 0;
+					left_param = 0;
+					right_param = 0;
+					ST_cnt = 0;
 					Mcntr = 1;
 					osDelay(10);
 				}
@@ -696,98 +730,77 @@ void driving_mode()
 			}
 			break;
 		case 1 :	// left
-			if(RL_cnt == 0)
+			switch(left_param)
 			{
-				switch(left_param)
+			case 0 :
+				//Motor_Mode(1);	// forward
+				Mcntr = 1;
+				if(FL_dist > 1000)
 				{
-				case 0 :
-					//Motor_Mode(1);	// forward
-					Mcntr = 1;
-					if(FL_dist > 1000)
-					{
-						Motor_Mode(0);	// STOP
-						Mcntr = 0;
-						osDelay(400);
-						//Read_Z_Angle(&MAX_D);
-						left_param = 1;
-					}
-					osDelay(10);
-					break;
-				case 1 :
+					Motor_Mode(0);	// STOP
+					Mcntr = 0;
+					osDelay(400);
 					//Read_Z_Angle(&MAX_D);
-					//Motor_Mode(6);	// Quick Left
-					Mcntr = 6;
-					if(MAX_D < -90)
-					{
-						Motor_Mode(0);	// STOP
-						Mcntr = 0;
-						osDelay(400);
-						left_param = 2;
-					}
-					osDelay(10);
-					break;
-				case 2 :
-					//Motor_Mode(1);	// forward
-					Mcntr = 1;
-					RL_cnt = 1;
-					osDelay(100);
-					left_param = 0;
-					Move_mode = 0;
-					break;
+					left_param = 1;
 				}
-			}
-			else
-			{
-			//Motor_Mode(1);	// forward
-			Mcntr = 1;
-			osDelay(10);
+				osDelay(10);
+				break;
+			case 1 :
+				//Read_Z_Angle(&MAX_D);
+				//Motor_Mode(6);	// Quick Left
+				Mcntr = 6;
+				if(MAX_D < -90)
+				{
+					Motor_Mode(0);	// STOP
+					Mcntr = 0;
+					osDelay(400);
+					left_param = 2;
+				}
+				osDelay(10);
+				break;
+			case 2 :
+				//Motor_Mode(1);	// forward
+				Mcntr = 1;
+				osDelay(100);
+				Move_mode = 0;
+				break;
 			}
 			break;
 		case 2 :	// right
-			if(RL_cnt == 0)
+			switch(right_param)
 			{
-				switch(right_param)
-				{
-				case 0 :
-					//Motor_Mode(1);	// forward
-					Mcntr = 1;
-					if(FR_dist > 1000)
-					{
-						Motor_Mode(0);	// STOP
-						Mcntr = 0;
-						osDelay(400);
-						//Read_Z_Angle(&MAX_D);
-						right_param = 1;
-					}
-					osDelay(10);
-					break;
-				case 1 :
-					//Read_Z_Angle(&MAX_D);
-					//Motor_Mode(4);	// Quick right
-					Mcntr = 4;
-					if(MAX_D > 90)
-					{
-						Motor_Mode(0);	// STOP
-						Mcntr = 0;
-						osDelay(400);
-						right_param = 2;
-					}
-					osDelay(10);
-					break;
-				case 2 :
-					//Motor_Mode(1);	// forward
-					Mcntr = 1;
-					osDelay(100);
-					right_param = 0;
-					Move_mode = 0;
-					break;
-				}
-			}
-			else
-			{
+			case 0 :
 				//Motor_Mode(1);	// forward
 				Mcntr = 1;
+				if(FR_dist > 1000)
+				{
+					Motor_Mode(0);	// STOP
+					Mcntr = 0;
+					osDelay(400);
+					//Read_Z_Angle(&MAX_D);
+					right_param = 1;
+				}
 				osDelay(10);
+				break;
+			case 1 :
+				//Read_Z_Angle(&MAX_D);
+				//Motor_Mode(4);	// Quick right
+				Mcntr = 4;
+				if(MAX_D > 90)
+				{
+					Motor_Mode(0);	// STOP
+					Mcntr = 0;
+					osDelay(400);
+					right_param = 2;
+				}
+				osDelay(10);
+				break;
+			case 2 :
+				//Motor_Mode(1);	// forward
+				Mcntr = 1;
+				osDelay(100);
+				Move_mode = 0;
+				break;
 			}
 			break;
 		case 3 :	// back
@@ -900,10 +913,11 @@ void driving_mode()
 				}
 				else
 				{
+					left_param = 0;
+					right_param = 0;
 					ST_cnt = 0;
 					Mcntr = 1;
 					osDelay(10);
-					if((FL_dist < 1000) || (FR_dist < 1000))	RL_cnt = 0;
 				}
 				break;
 			case 1 :
@@ -979,98 +993,77 @@ void driving_mode()
 			}
 			break;
 		case 1 :	// left
-			if(RL_cnt == 0)
+			switch(left_param)
 			{
-				switch(left_param)
+			case 0 :
+				//Motor_Mode(1);	// forward
+				Mcntr = 1;
+				if(FL_dist > 1000)
 				{
-				case 0 :
-					//Motor_Mode(1);	// forward
-					Mcntr = 1;
-					if(FL_dist > 1000)
-					{
-						Motor_Mode(0);	// STOP
-						Mcntr = 0;
-						osDelay(400);
-						//Read_Z_Angle(&MAX_D);
-						left_param = 1;
-					}
-					osDelay(10);
-					break;
-				case 1 :
+					Motor_Mode(0);	// STOP
+					Mcntr = 0;
+					osDelay(400);
 					//Read_Z_Angle(&MAX_D);
-					//Motor_Mode(6);	// Quick Left
-					Mcntr = 6;
-					if(MAX_D < -90)
-					{
-						Motor_Mode(0);	// STOP
-						Mcntr = 0;
-						osDelay(400);
-						left_param = 2;
-					}
-					osDelay(10);
-					break;
-				case 2 :
-					//Motor_Mode(1);	// forward
-					Mcntr = 1;
-					RL_cnt = 1;
-					osDelay(100);
-					left_param = 0;
-					Move_mode = 0;
-					break;
+					left_param = 1;
 				}
-			}
-			else
-			{
-			//Motor_Mode(1);	// forward
-			Mcntr = 1;
-			osDelay(10);
+				osDelay(10);
+				break;
+			case 1 :
+				//Read_Z_Angle(&MAX_D);
+				//Motor_Mode(6);	// Quick Left
+				Mcntr = 6;
+				if(MAX_D < -90)
+				{
+					Motor_Mode(0);	// STOP
+					Mcntr = 0;
+					osDelay(400);
+					left_param = 2;
+				}
+				osDelay(10);
+				break;
+			case 2 :
+				//Motor_Mode(1);	// forward
+				Mcntr = 1;
+				osDelay(100);
+				Move_mode = 0;
+				break;
 			}
 			break;
 		case 2 :	// right
-			if(RL_cnt == 0)
+			switch(right_param)
 			{
-				switch(right_param)
-				{
-				case 0 :
-					//Motor_Mode(1);	// forward
-					Mcntr = 1;
-					if(FR_dist > 1000)
-					{
-						Motor_Mode(0);	// STOP
-						Mcntr = 0;
-						osDelay(400);
-						//Read_Z_Angle(&MAX_D);
-						right_param = 1;
-					}
-					osDelay(10);
-					break;
-				case 1 :
-					//Read_Z_Angle(&MAX_D);
-					//Motor_Mode(4);	// Quick right
-					Mcntr = 4;
-					if(MAX_D > 90)
-					{
-						Motor_Mode(0);	// STOP
-						Mcntr = 0;
-						osDelay(400);
-						right_param = 2;
-					}
-					osDelay(10);
-					break;
-				case 2 :
-					//Motor_Mode(1);	// forward
-					Mcntr = 1;
-					osDelay(100);
-					right_param = 0;
-					Move_mode = 0;
-					break;
-				}
-			}
-			else
-			{
+			case 0 :
 				//Motor_Mode(1);	// forward
 				Mcntr = 1;
+				if(FR_dist > 1000)
+				{
+					Motor_Mode(0);	// STOP
+					Mcntr = 0;
+					osDelay(400);
+					//Read_Z_Angle(&MAX_D);
+					right_param = 1;
+				}
 				osDelay(10);
+				break;
+			case 1 :
+				//Read_Z_Angle(&MAX_D);
+				//Motor_Mode(4);	// Quick right
+				Mcntr = 4;
+				if(MAX_D > 90)
+				{
+					Motor_Mode(0);	// STOP
+					Mcntr = 0;
+					osDelay(400);
+					right_param = 2;
+				}
+				osDelay(10);
+				break;
+			case 2 :
+				//Motor_Mode(1);	// forward
+				Mcntr = 1;
+				osDelay(100);
+				Move_mode = 0;
+				break;
 			}
 			break;
 		case 3 :	// back
@@ -1163,8 +1156,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		//drive_set = 5;		// charge
 		//map_select = 4;		// point2 - charge
 
-		// drive_set = 2;	// drive
-		//map_select = 1;	// point1 - point2
+		 drive_set = 2;	// drive
+		map_select = 1;	// point1 - point2
+		esp_set = 3;
 		break;
   }
 }
@@ -2037,7 +2031,7 @@ void StartTask1(void const * argument)
 //	  sprintf(testbuf2[50],"D:%d,B:%d,W:%d,S:%d,M:%d\r\n", drive_set, BLE_point, ESP_send, safe_st, map_set);
 //	  printe(testbuf2);
 	  printf("D:%d,B:%d,W:%d,S:%d,M:%d\r\n", drive_set, BLE_point, ESP_send, safe_st, map_set);
-
+	  printf("RL:%d,Z:%d,LP:%d\r\n", RL_cnt, MAX_D, left_param);
 	  osDelay(100);
 //	  unsigned char testbuf2[50];
 //	  sprintf(testbuf2,"z:%d,dp:%d,ds:%d,Mm:%d                     \r\n",MAX_D, desti_param, drive_set, Move_mode);
