@@ -161,66 +161,45 @@ var server = net.createServer((socket) => { // TCP 서버를 만든다.
                 while (socket.clientState.buffer.startsWith('4') && socket.clientState.buffer.length >= 6) {
                     let message = socket.clientState.buffer.slice(0, 6);
                     socket.clientState.buffer = socket.clientState.buffer.slice(6); // 나머지 버퍼 갱신
+                    
+                    hall = 0;
+                    if ((force === 0) && (Emergency_hb === 0)) { // All Right
+                        clients.forEach(client => {
+                            client.write('0300\r\n');
+                            console.log('All Right');
+                        });
+                    }
                     if (message === '4000\r\n') { // unbuckle
                         hall = 1;
-                        if ((force === 1) && (Emergency_hf === 0)) { // Emergency
-                            Emergency_hf = 1;
-                            clients.forEach(client => {
-                                client.write('0000\r\n');
-                                console.log('Emergency');
-                            });
-                        }
+                        Emergency_hf = 1;
+                        clients.forEach(client => {
+                            client.write('0000\r\n');
+                            console.log('Emergency');
+                        });
                     } else { // buckle
                         hall = 0;
-                        if ((force === 0) && (Emergency_hb === 0)) { // All Right
-                            clients.forEach(client => {
-                                client.write('0300\r\n');
-                                console.log('All Right');
-                            });
-                        }
+                        clients.forEach(client => {
+                            client.write('0300\r\n');
+                            console.log('All Right');
+                        });
                     }
-                    // clients.forEach(client => {
-                    //     if (client.clientState.type === 'WheelChair') {
-                    //         client.write(message);
-                    //         console.log('안전벨트 (LCD -> SERVER -> WC):', message);
-                    //     }
-                    // });
                 }
         
                 // Force Sensor 처리
                 while (socket.clientState.buffer.startsWith('5') && socket.clientState.buffer.length >= 6) {
                     let message = socket.clientState.buffer.slice(0, 6);
                     socket.clientState.buffer = socket.clientState.buffer.slice(6); // 나머지 버퍼 갱신
-                    if (message === '5000\r\n') { // stand
-                        force = 1;
-                        if (hall === 1) { // Emergency
-                            Emergency_hf = 1;
-                            clients.forEach(client => {
-                                client.write('0000\r\n');
-                                console.log('Emergency');
-                            });
-                        }
+                    force = 0;
+                    clients.forEach(client => {
+                        client.write('0100\r\n');
+                        client.write('5100\r\n');
+                        console.log('Emergency_hf 끝');
+                    });
+                    if ((hall === 0) && (Emergency_hb === 0)) { // All Right
                         clients.forEach(client => {
-                            if (client.clientState.type === 'WheelChair') {
-                                client.write(message);
-                                console.log('심박 데이터 (LCD -> SERVER -> WC):', message);
-                            }
+                            client.write('0300\r\n');
+                            console.log('All Right');
                         });
-                    } else { // sit
-                        force = 0;
-                        if (Emergency_hf === 1) {
-                            Emergency_hf = 0;
-                            clients.forEach(client => {
-                                client.write('0100\r\n');
-                                console.log('Emergency_hf 끝');
-                            });
-                        }
-                        if ((hall === 0) && (Emergency_hb === 0)) { // All Right
-                            clients.forEach(client => {
-                                client.write('0300\r\n');
-                                console.log('All Right');
-                            });
-                        }
                     }
                 }
         
@@ -228,24 +207,16 @@ var server = net.createServer((socket) => { // TCP 서버를 만든다.
                 while (socket.clientState.buffer.startsWith('6') && socket.clientState.buffer.length >= 6) {
                     let message = socket.clientState.buffer.slice(0, 6);
                     socket.clientState.buffer = socket.clientState.buffer.slice(6); // 나머지 버퍼 갱신
-                    if (message === '6200\r\n') { // Emergency
-                        Emergency_hb = 1;
+                    Emergency_hb = 0;
+                    clients.forEach(client => {
+                        //client.write('0200\r\n');
+                        console.log('Emergency_hb 끝');
+                    });
+                    if ((force === 0) && (hall === 0)) { // All Right
                         clients.forEach(client => {
-                            client.write('0000\r\n');
-                            console.log('Emergency');
+                            client.write('0300\r\n');
+                            console.log('All Right');
                         });
-                    } else if (message === '6100\r\n') {
-                        Emergency_hb = 0;
-                        clients.forEach(client => {
-                            //client.write('0200\r\n');
-                            console.log('Emergency_hb 끝');
-                        });
-                        if ((force === 0) && (hall === 0)) { // All Right
-                            clients.forEach(client => {
-                                client.write('0300\r\n');
-                                console.log('All Right');
-                            });
-                        }
                     }
                     clients.forEach(client => {
                         if (client.clientState.type === 'WheelChair') {

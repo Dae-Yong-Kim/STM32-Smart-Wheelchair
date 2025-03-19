@@ -11,16 +11,20 @@ class Graph {
         this.directions.set(node, new Map()); // 방향 정보도 초기화
     }
 
-    addEdge(node1, node2, weight, direction) {
+    addEdge(node1, node2, weight) {
         this.edges.get(node1).set(node2, weight);
         this.edges.get(node2).set(node1, weight);
 
         // 방향 정보 저장
-        this.directions.get(node1).set(node2, direction);
+        this.directions.get(node1).set(node2, new Map());
+        this.directions.get(node2).set(node1, new Map());
+    }
 
+    addDirection(node1, node2, node3, direction) {
         // 반대 방향 자동 설정
         let oppositeDirection = direction === "좌회전" ? "우회전" : direction === "우회전" ? "좌회전" : "직진";
-        this.directions.get(node2).set(node1, oppositeDirection);
+        this.directions.get(node1).get(node2).set(node3, direction);
+        this.directions.get(node3).get(node2).set(node1, oppositeDirection);
     }
 
     dijkstra(start, end) {
@@ -59,7 +63,19 @@ class Graph {
         while (previous.has(step)) {
             let prevStep = previous.get(step);
             path.unshift(step);
-            directions.unshift(this.directions.get(prevStep).get(step)); // 방향 정보 추가
+            
+            // 방향 정보가 존재하면 추가
+            if (this.directions.has(prevStep) && this.directions.get(prevStep).has(step)) {
+                let nextStep = path.length > 1 ? path[1] : null;
+                if (nextStep && this.directions.get(prevStep).get(step).has(nextStep)) {
+                    directions.unshift(this.directions.get(prevStep).get(step).get(nextStep));
+                } else {
+                    //directions.unshift("알 수 없음"); // 방향 정보가 없을 경우 기본값 설정
+                }
+            } else {
+                //directions.unshift("알 수 없음");
+            }
+
             step = prevStep;
         }
         path.unshift(start);
@@ -70,15 +86,30 @@ class Graph {
 
 // 그래프 정의
 const graph = new Graph();
-['A', 'B', 'C', 'D'].forEach(node => graph.addNode(node));
-graph.addEdge('A', 'B', 5, "좌회전");
-graph.addEdge('A', 'C', 10, "직진");
-graph.addEdge('B', 'C', 3, "우회전");
-graph.addEdge('B', 'D', 9, "좌회전");
-graph.addEdge('C', 'D', 2, "직진");
+['A', 'B', 'C', 'D', 'E', 'F'].forEach(node => graph.addNode(node));
+
+graph.addEdge('A', 'C', 1);
+graph.addEdge('A', 'E', 1);
+graph.addEdge('A', 'F', 3);
+graph.addEdge('B', 'C', 1);
+graph.addEdge('B', 'F', 3);
+graph.addEdge('C', 'D', 1);
+graph.addEdge('D', 'E', 2);
+
+graph.addDirection('A', 'C', 'B', "좌회전");
+graph.addDirection('A', 'C', 'D', "우회전");
+graph.addDirection('A', 'F', 'B', "우회전");
+graph.addDirection('A', 'E', 'D', "좌회전");
+graph.addDirection('B', 'C', 'D', "직진");
+graph.addDirection('C', 'B', 'F', "좌회전");
+graph.addDirection('C', 'A', 'F', "우회전");
+graph.addDirection('C', 'D', 'E', "우회전");
+graph.addDirection('C', 'A', 'E', "좌회전");
+graph.addDirection('C', 'A', 'E', "좌회전");
+graph.addDirection('E', 'A', 'F', "직진");
 
 // 최단 경로 테스트 (예시코드)
-const result = graph.dijkstra('A', 'D');
+const result = graph.dijkstra('F', 'D');
 console.log("최단 거리:", result.distance);
 console.log("경로:", result.path.join(" → "));
 console.log("방향:", result.directions.join(" → "));
