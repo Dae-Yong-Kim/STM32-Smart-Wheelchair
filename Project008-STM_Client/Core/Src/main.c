@@ -77,6 +77,8 @@ static void MX_SPI1_Init(void);
 #define RATE_SIZE 10
 #define BUF_SIZE 100
 
+tp_dev_t tp_dev;
+
 uint16_t W_addr = 0xAE;
 uint16_t R_addr = 0xAF;
 uint8_t data;
@@ -248,6 +250,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		  break;
 	  case TP_IRQ_Pin:
 		  if(lcd_set) {
+			  TP_Scan(0, &tp_dev);
+			  //HAL_Delay(100);
 			  tp_en = 1;
 			  printf("tp_en: %d\r\n", tp_en);
 		  }
@@ -309,7 +313,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 						  // Origin is xxx
 						  break;
 					  case '2':														// Destination is xxx
-						  if(buf1[10] == '3') {
+						  if(buf1[10] == '1') {
 							  desb_sc = 1;
 							  /*LCD_Clear(BACKGROUND_COLOR, beatAvg, battery);  // ?���?? ?��리어
 							  EmergencyMessage();*/  // 긴급 메시�?? ?��?�� ?��?�� ?���??
@@ -466,10 +470,10 @@ int main(void)
   i2c_scan();
   Moduleset();
   LCD_Clear(BACKGROUND_COLOR, 0, 100);
-  TP_Init();
+  TP_Init(&tp_dev);
   Lcd_Init();
 
-  Load_Touch_Draw();
+  Load_Touch_Draw(&tp_dev);
 
   // LED Current set
   data = 0x0A;  // MAX 50mA (0xFF) // 0x20: 14.2mA
@@ -492,8 +496,6 @@ int main(void)
   int IRValue = 0;
   int last_bpm_update_time = 0;
   int pre_bpm = 0;
-  tp_en = 1;
-  TP_Scan(0);
   while (1)
   {
 	  HAL_I2C_Mem_Read(&hi2c1, R_addr, 0x00, 1, &data, 1, 1000);
@@ -592,10 +594,10 @@ int main(void)
 
 	  if(tp_en) {
 		  if(IRValue < 10000) {
-			  current_screen = TP_test(0, battery, current_screen);
+			  TP_test(0, battery, &current_screen, &tp_dev);
 		  }
 		  else {
-			  current_screen = TP_test(beatAvg, battery, current_screen);
+			  TP_test(beatAvg, battery, &current_screen, &tp_dev);
 		  }
 		  tp_en = 0;
 	  }
@@ -607,7 +609,7 @@ int main(void)
 
 	  if(main_sc && (current_screen != 0)) {
 		  LCD_Clear(BACKGROUND_COLOR, beatAvg, battery);
-		  Load_Touch_Draw();
+		  Load_Touch_Draw(&tp_dev);
 		  current_screen = 0;
 		  main_sc = 0;
 	  }

@@ -8,8 +8,6 @@
 
 extern SPI_HandleTypeDef hspi1;
 
-tp_dev_t tp_dev;
-
 void delayMicroseconds(uint32_t us)
 {
    do
@@ -20,14 +18,14 @@ void delayMicroseconds(uint32_t us)
 }
 
 
-void TP_Init(void)
+void TP_Init(tp_dev_t* tp_dev)
 {
-    tp_dev.xfac = -7.86F;
-    tp_dev.yfac = 11.32F;
-    tp_dev.xc = 2047;
-    tp_dev.yc = 2047;
+    tp_dev->xfac = -7.86F;
+    tp_dev->yfac = 11.32F;
+    tp_dev->xc = 2047;
+    tp_dev->yc = 2047;
 
-    tp_dev.paint_color = BLACK;
+    tp_dev->paint_color = BLACK;
 }
 
 
@@ -164,54 +162,56 @@ uint8_t TP_Read_ADC_XY2(uint16_t *x_adc, uint16_t  *y_adc )
     return 0;
 }
 
+int pressed = 0;
 //function:touch button scan
 //mode: 1 : calibration; 0 : relative position
-unsigned char TP_Scan(unsigned char mode)
+unsigned char TP_Scan(unsigned char mode, tp_dev_t* tp_dev)
 {
   //In X, Y coordinate measurement, IRQ is disabled and output is low
   if (!GET_TP_IRQ) //Press the button to press
   {
      // TP_Scan에서 상태 출력 추가
-     printf("TP_Scan: TP_IRQ = %d, TP_PRESS_DOWN = %d\n", GET_TP_IRQ, tp_dev.statu & TP_PRESS_DOWN);
+     printf("TP_Scan: TP_IRQ = %d, TP_PRESS_DOWN = %d\n", GET_TP_IRQ, tp_dev->statu & TP_PRESS_DOWN);
 
          //Read the physical coordinates
          if (mode)
          {
-             TP_Read_ADC_XY2(&tp_dev.x[0], &tp_dev.y[0]);
+             TP_Read_ADC_XY2(&(tp_dev->x[0]), &(tp_dev->y[0]));
          }
-         else if (TP_Read_ADC_XY2(&tp_dev.x[0], &tp_dev.y[0])) //Read the screen coordinates
+         else if (TP_Read_ADC_XY2(&(tp_dev->x[0]), &(tp_dev->y[0]))) //Read the screen coordinates
          {
-            printf("before - x: %d, y: %d\r\n", tp_dev.x[0], tp_dev.y[0]);
+            printf("before - x: %d, y: %d\r\n", tp_dev->x[0], tp_dev->y[0]);
                //Convert the X-axis physical coordinates into logical coordinates (that is, corresponding to the X coordinate value on the LCD screen)
-               tp_dev.x[0] = (signed short)(tp_dev.x[0] - tp_dev.xc) / tp_dev.xfac + lcddev.width / 2;
+               tp_dev->x[0] = (signed short)(tp_dev->x[0] - tp_dev->xc) / tp_dev->xfac + lcddev.width / 2;
 
                //Convert the Y-axis physical coordinates into logical coordinates (that is, corresponding to the Y coordinate value on the LCD screen)
-               tp_dev.y[0] = (signed short)(tp_dev.y[0] - tp_dev.yc) / tp_dev.yfac + lcddev.height / 2;
-               printf("after - x: %d, y: %d\r\n\r\n", tp_dev.x[0], tp_dev.y[0]);
+               tp_dev->y[0] = (signed short)(tp_dev->y[0] - tp_dev->yc) / tp_dev->yfac + lcddev.height / 2;
+               printf("after - x: %d, y: %d\r\n\r\n", tp_dev->x[0], tp_dev->y[0]);
+               pressed = 1;
 
          }
-         if ((tp_dev.statu & TP_PRESS_DOWN) == 0) //was not pressed before
+         if ((tp_dev->statu & TP_PRESS_DOWN) == 0) //was not pressed before
          {
-             tp_dev.statu = TP_PRESS_DOWN | TP_CATH_PRES; //pressed
-             tp_dev.x[4] = tp_dev.x[0]; //Save the coordinates of the first press
-             tp_dev.y[4] = tp_dev.y[0];
+             tp_dev->statu = TP_PRESS_DOWN | TP_CATH_PRES; //pressed
+             tp_dev->x[4] = tp_dev->x[0]; //Save the coordinates of the first press
+             tp_dev->y[4] = tp_dev->y[0];
          }
   }
   else
   {
-         if (tp_dev.statu & TP_PRESS_DOWN) //was pressed before
+         if (tp_dev->statu & TP_PRESS_DOWN) //was pressed before
          {
-             tp_dev.statu &= ~TP_PRESS_DOWN; //Mark key released
+             tp_dev->statu &= ~TP_PRESS_DOWN; //Mark key released
          }
          else
          {
-             tp_dev.x[4] = 0;
-             tp_dev.y[4] = 0;
-             tp_dev.x[0] = 0xffff;
-             tp_dev.y[0] = 0xffff;
+             tp_dev->x[4] = 0;
+             tp_dev->y[4] = 0;
+             tp_dev->x[0] = 0xffff;
+             tp_dev->y[0] = 0xffff;
          }
   }
-  return (tp_dev.statu & TP_PRESS_DOWN);
+  return (tp_dev->statu & TP_PRESS_DOWN);
 }
 
 ///*******************************************************************************
@@ -371,9 +371,9 @@ typedef enum {
 
 //ScreenState current_screen = SCREEN_MAIN;  // 현재 화면 상태
 
-void Load_Touch_Draw(void)
+void Load_Touch_Draw(tp_dev_t* tp_dev)
 {
-    tp_dev.paint_color = BLACK;
+    tp_dev->paint_color = BLACK;
 
     Gui_draw_circle(130, 165, 65, BLACK, 1, FULL);
     Gui_draw_str(83, 155, "Dest A", &Font24, MAGENTA, BLACK);
@@ -461,7 +461,7 @@ void EmergencyMessage(void)
 
 
 int cr_screen = 0;
-int TP_test(int heartbeat, int battery, int current_screen)
+void TP_test(int heartbeat, int battery, int* current_screen, tp_dev_t* tp_dev)
 {
     uint16_t paint_width = 2;
     //Load_Touch_Draw();  // 초기 화면 로드
@@ -469,10 +469,8 @@ int TP_test(int heartbeat, int battery, int current_screen)
     /*int last_bpm_update_time = 0;  // 마지막 BPM 업데이트 시간 추적
     int last_battery = 0;*/
     //int heartbeat = 0;  // 초기 BPM 값 설정
-
-	TP_Scan(0);
-	HAL_Delay(100);
-	cr_screen = current_screen;
+	cr_screen = *current_screen;
+	printf("----------------%d----------------\r\n", cr_screen);
 
 	// 1초마다 BPM을 갱신하고 화면에 표시
 	/*if (HAL_GetTick() - last_bpm_update_time >= 1000)  // 1초가 경과했을 때
@@ -494,20 +492,20 @@ int TP_test(int heartbeat, int battery, int current_screen)
 		cr_screen = 1;  // 화면 상태를 SCREEN_EMERGENCY로 변경
 	}
 
-	if(tp_dev.statu & TP_PRESS_DOWN)
+	if(pressed)
 	{
-		if(tp_dev.x[0]<lcddev.width && tp_dev.y[0]<lcddev.height)
+		if(tp_dev->x[0]<lcddev.width && tp_dev->y[0]<lcddev.height)
 		{
 			if (cr_screen == 0)  // 메인 화면일 때 버튼 체크
 			{
-				if ((tp_dev.x[0]-130)*(tp_dev.x[0]-130) + (tp_dev.y[0]-165)*(tp_dev.y[0]-165) <= 65*65)
+				if ((tp_dev->x[0]-130)*(tp_dev->x[0]-130) + (tp_dev->y[0]-165)*(tp_dev->y[0]-165) <= 65*65)
 				{
 					LCD_Clear(BACKGROUND_COLOR, heartbeat, battery);
 					while(!printe("2200"));
 					ShowDestA();
 					cr_screen = 2;
 				}
-				else if ((tp_dev.x[0]-330)*(tp_dev.x[0]-330) + (tp_dev.y[0]-165)*(tp_dev.y[0]-165) <= 65*65)
+				else if ((tp_dev->x[0]-330)*(tp_dev->x[0]-330) + (tp_dev->y[0]-165)*(tp_dev->y[0]-165) <= 65*65)
 				{
 					LCD_Clear(BACKGROUND_COLOR, heartbeat, battery);
 					while(!printe("2300"));
@@ -517,10 +515,10 @@ int TP_test(int heartbeat, int battery, int current_screen)
 			}
 			else
 			{
-				if (tp_dev.x[0] > 370 && tp_dev.x[0] < 450 && tp_dev.y[0] > 290 && tp_dev.y[0] < 320)
+				if (tp_dev->x[0] > 370 && tp_dev->x[0] < 450 && tp_dev->y[0] > 290 && tp_dev->y[0] < 320)
 				{
 					LCD_Clear(BACKGROUND_COLOR, heartbeat, battery);
-					Load_Touch_Draw();  // 메인 화면으로 복귀
+					Load_Touch_Draw(tp_dev);  // 메인 화면으로 복귀
 					cr_screen = 0;
 				}
 			}
@@ -575,8 +573,9 @@ int TP_test(int heartbeat, int battery, int current_screen)
 					current_screen = SCREEN_MAIN;
 				}
 			}*/
+		pressed = 0;
 		}
-		return cr_screen;
+		*current_screen = cr_screen;
 	}
 }
 

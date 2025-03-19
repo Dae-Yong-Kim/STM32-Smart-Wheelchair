@@ -45,11 +45,11 @@ extern tp_dev_t tp_dev;
 
 //
 void delayMicroseconds(uint32_t us);
-void TP_Init(void);
-uint8_t TP_Scan(uint8_t mode);
+void TP_Init(tp_dev_t* td);
+uint8_t TP_Scan(uint8_t mode, tp_dev_t* tp_dev);
 void TP_Calibrate(void);
-void Load_Touch_Draw(void);
-int TP_test(int heartbeat, int battery, int current_screen);
+void Load_Touch_Draw(tp_dev_t* tp_dev);
+void TP_test(int heartbeat, int battery, int* current_screen, tp_dev_t* tp_dev);
 
 #ifdef __cplusplus
 }
