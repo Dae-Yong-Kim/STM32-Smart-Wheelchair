@@ -853,7 +853,7 @@ void driving_mode()
 			//Read_Z_Angle(&MAX_D);
 			//Motor_Mode(6);	// Quick Left
 			Mcntr = 6;
-			if(MAX_D < -179)
+			if(MAX_D < -175)
 			{
 				Motor_Mode(0);	// STOP
 				Mcntr = 0;
@@ -1153,12 +1153,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch(GPIO_Pin) {
 	case GPIO_PIN_13:
-		//drive_set = 5;		// charge
-		//map_select = 4;		// point2 - charge
+		drive_set = 5;		// charge
+		map_select = 4;		// point2 - charge
 
-		 drive_set = 2;	// drive
-		map_select = 1;	// point1 - point2
-		esp_set = 3;
+//		 drive_set = 2;	// drive
+//		map_select = 1;	// point1 - point2
+//		esp_set = 3;
 		break;
   }
 }
