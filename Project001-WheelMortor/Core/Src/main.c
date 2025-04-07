@@ -275,7 +275,7 @@ float voltage_L = 12.4;		 // 전압값 감소 확인
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM3) {
-	        // Timer3 interrupt	0.05 sec Period
+	        // Timer3 interrupt	0.06 sec Period
 		Voltage_state();
 	}
 	else if (htim->Instance == TIM4) {
@@ -308,6 +308,7 @@ void Voltage_state()
 		  int curr_volt = (1 - ((max_voltage - voltage_L) / voltage_param)) * 100;
 		  printf("배터리 충전 상태 : %d% \r\n", curr_volt);
 		}
+		voltage_en = 0;
 	}
 	/* Debug */
 //	printf("curr_volt : %.2f \r\n", voltage_L);
